@@ -42,7 +42,7 @@ Schema-As-Code 约束编译框架 —— 意图的形式化契约注入与概率
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/你的用户名/intent-schema-compiler.git
+git clone https://github.com/2436041978-ops/intent-schema-compiler.git
 
 # 2. 查看意图契约示例
 cat kernel/intent-schema.json
