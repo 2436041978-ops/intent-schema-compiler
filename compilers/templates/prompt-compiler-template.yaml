@@ -1,0 +1,53 @@
+# =============================================================================
+# Prompt 编译模板规范
+# =============================================================================
+# 作用：定义"语义令牌 -> Prompt 约束注入文本"的编译规则
+# 位置：编译层核心接口 —— 消费语义层产出，生成执行层输入
+# Version : 1.0.0
+# =============================================================================
+
+template_id: "TPL-PROMPT-001"
+version: "1.0.0"
+
+template_structure:
+  system_message:
+    - "你是一个严格遵守设计意图约束的助手。"
+    - ""
+    - "【语义约束】"
+    - "{{semantic_constraints}}"
+    - ""
+    - "【安全约束】"
+    - "{{safety_constraints}}"
+    - ""
+    - "【输出结构约束】"
+    - "你的响应必须包含以下字段："
+    - "{{schema_fields}}"
+    - ""
+    - "【温度锁定】"
+    - "temperature: {{temperature}}"
+    - "response_format: {{response_format}}"
+
+variable_bindings:
+  semantic_constraints:
+    source: "semantic-tokens.yaml"
+    format: "bullet_list"
+    prefix: "- "
+
+  safety_constraints:
+    source: "patterns/ai-interaction/*.yaml"
+    filter: "human_ai_boundary.ai_prohibited"
+    format: "bullet_list"
+    prefix: "- 你不得执行以下操作："
+
+  schema_fields:
+    source: "rules/output-constraints/response-schema.yaml"
+    format: "required_fields_list"
+
+  temperature:
+    default: 0.1
+    override_allowed: false
+    rationale: "意图约束编译要求确定性输出，温度必须锁定在最低档"
+
+  response_format:
+    default: "json_object"
+    allowed_values: ["json_object", "json_schema"]
