@@ -1,0 +1,43 @@
+# =============================================================================
+# 自反性测试：Schema 协议完备性检查
+# =============================================================================
+# 作用：验证仓库自身的治理规则是否覆盖了所有意图
+# 理念：治理系统必须能审计自己
+# Version : 1.0.0
+# =============================================================================
+
+test_id: "META-001"
+test_name: "Schema 协议完备性闭环"
+description: |
+  验证仓库中每个被定义的意图、令牌、模式都有对应的约束、测试和降级策略。
+  这是"治理系统审计自己"的核心机制。
+
+test_cases:
+  - case: "意图有定义但无输出 Schema"
+    scan: "kernel/intent-schema.json"
+    condition: "intent_id exists"
+    require: "rules/output-constraints/{intent_id}.yaml exists"
+    expected: "PASS"
+    severity: "error"
+
+  - case: "语义令牌有定义但无 LLM 约束"
+    scan: "kernel/semantic-tokens.yaml"
+    condition: "token.description exists"
+    require: "token.llm_constraints is not empty"
+    expected: "PASS"
+    severity: "error"
+
+  - case: "模式卡片有定义但无 fallback"
+    scan: "patterns/ai-interaction/*.yaml"
+    condition: "pattern_id exists"
+    require: "fallback_strategy exists"
+    expected: "PASS"
+    severity: "warning"
+
+  - case: "critical 意图只有单层验证"
+    scan: "kernel/intent-schema.json"
+    condition: "severity == 'critical'"
+    require: "len(verification_layer) >= 2"
+    expected: "PASS"
+    severity: "error"
+    lesson: "2026-04-08: 声明层全绿但推送失败 3 天——单层验证给出虚假安全感"
