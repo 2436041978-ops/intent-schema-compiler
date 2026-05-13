@@ -1,0 +1,396 @@
+# =============================================================================
+# Semantic Tokens Registry — 语义令牌注册表
+# =============================================================================
+# Schema-As-Code 框架的领域语义单元定义。
+# 所有语义令牌在此集中注册，确保跨意图的语义一致性，防止语义漂移。
+#
+# 设计原则：
+#   1. Single Source of Truth — 每个语义概念仅有一个权威定义
+#   2. Canonical Form Enforcement — 强制规范形式，消除表达歧义
+#   3. Constraint-Driven — 每个令牌附带结构约束和语义约束
+#   4. Versioned Evolution — 令牌变更需遵循版本兼容性策略
+#
+# Version: 1.0.0
+# Schema:  https://intent-schema-compiler.dev/kernel/semantic-tokens-schema.yaml
+# =============================================================================
+
+registry_metadata:
+  name: intent-schema-compiler-semantic-tokens
+  version: 1.0.0
+  description: |
+    意图编译器语义令牌注册表。定义 Schema-As-Code 框架下的领域核心语义单元，
+    为意图契约提供标准化的语义引用目标。所有在意图定义中使用的语义令牌
+    必须在此注册表中存在对应的条目。
+  last_updated: "2024-07-15T00:00:00Z"
+  maintainer: "schema-governance@company.dev"
+  governance_policy: |
+    令牌的新增、修改和废弃需经过语义治理委员会审批。
+    破坏性变更仅在主版本升级时允许，且必须提供迁移指南。
+  compatibility_rules:
+    - "补丁版本更新（x.y.Z）：仅添加新令牌，向后完全兼容"
+    - "次要版本更新（x.Y.z）：可添加令牌字段，向后兼容"
+    - "主版本更新（X.y.z）：允许破坏性变更，需迁移期 >= 30 天"
+
+# -----------------------------------------------------------------------------
+# Core Domain Tokens — 核心领域令牌
+# -----------------------------------------------------------------------------
+
+tokens:
+
+  # ---------------------------------------------------------------------------
+  # alert — 告警
+  # ---------------------------------------------------------------------------
+  - name: alert
+    description: |
+      告警（Alert）是监控体系中对异常状态的信号化表达。
+      一个告警记录标识了某个监控目标在特定时间点偏离预期行为的程度，
+      并携带用于后续处置的结构化信息。
+      告警是事件驱动的、不可变的、可追踪的。
+    canonical_form:
+      structure: object
+      required_fields:
+        - alert_id
+        - metric_name
+        - metric_value
+        - threshold
+        - severity
+        - triggered_at
+        - source
+      field_types:
+        alert_id: string (UUID v4)
+        metric_name: string
+        metric_value: number
+        threshold: number
+        severity: enum [critical, warning, info]
+        triggered_at: string (ISO 8601)
+        source: string
+      optional_fields:
+        - priority
+        - tags
+        - recommendation
+        - resolved_at
+    aliases:
+      - 告警
+      - alarm
+      - alert_event
+      - monitoring_alert
+      - anomaly_signal
+    constraints:
+      structural:
+        - field: alert_id
+          rule: "must match /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i"
+          severity: error
+        - field: triggered_at
+          rule: "must be a valid ISO 8601 timestamp with timezone"
+          severity: error
+        - field: metric_value
+          rule: "must be a finite number (not NaN, not Infinity)"
+          severity: error
+      semantic:
+        - rule: "metric_value compared against threshold must truthfully reflect the alert condition (e.g., value > threshold for upper-bound alerts)"
+          severity: error
+        - rule: "severity must be consistent with metric_value deviation magnitude from threshold"
+          severity: warning
+      referential:
+        - rule: "source field must reference a registered monitoring source identifier"
+          severity: error
+    usage_contexts:
+      - intent: alert_generation
+        role: "输出的核心语义实体"
+      - intent: incident_summary
+        role: "输入素材——关联告警列表的元素类型"
+    version_introduced: "1.0.0"
+    stability: stable
+
+  # ---------------------------------------------------------------------------
+  # incident — 故障
+  # ---------------------------------------------------------------------------
+  - name: incident
+    description: |
+      故障（Incident）是对服务可用性或性能造成负面影响的可识别事件。
+      故障通常由一条或多条告警触发，经过人工或自动确认后创建。
+      故障具有生命周期：触发（triggered）→ 确认（acknowledged）→
+      处置中（mitigating）→ 已恢复（resolved）→ 复盘（postmortem）。
+    canonical_form:
+      structure: object
+      required_fields:
+        - incident_id
+        - title
+        - status
+        - severity
+        - created_at
+        - triggered_by
+      field_types:
+        incident_id: string (UUID v4)
+        title: string (max 200 chars)
+        status: enum [triggered, acknowledged, mitigating, resolved, postmortem]
+        severity: enum [critical, high, medium, low]
+        created_at: string (ISO 8601)
+        triggered_by: string (alert_id reference)
+      optional_fields:
+        - description
+        - assigned_to
+        - resolved_at
+        - root_cause
+        - affected_services
+        - timeline
+    aliases:
+      - 故障
+      - outage
+      - service_disruption
+      - incident_event
+      - degradation
+    constraints:
+      structural:
+        - field: incident_id
+          rule: "must match UUID v4 format"
+          severity: error
+        - field: title
+          rule: "length must be between 5 and 200 characters"
+          severity: error
+        - field: status
+          rule: "must be one of the defined enum values"
+          severity: error
+      semantic:
+        - rule: "status transition must follow the lifecycle: triggered -> acknowledged -> mitigating -> resolved -> postmortem; backward transitions are prohibited except resolved -> mitigating (reopen)"
+          severity: error
+        - rule: "resolved_at, if present, must be >= created_at"
+          severity: error
+        - rule: "root_cause, if present, must not be empty when status is 'resolved' or 'postmortem'"
+          severity: warning
+      referential:
+        - rule: "triggered_by must reference an existing alert_id in the alert registry"
+          severity: error
+    usage_contexts:
+      - intent: incident_summary
+        role: "输入的核心语义实体——待摘要的故障事件"
+    version_introduced: "1.0.0"
+    stability: stable
+
+  # ---------------------------------------------------------------------------
+  # severity — 严重级别
+  # ---------------------------------------------------------------------------
+  - name: severity
+    description: |
+      严重级别（Severity）是衡量事件对业务影响程度的分类维度。
+      它直接影响通知渠道、升级路径、响应 SLA 和干系人范围。
+      严重级别具有全序关系：critical > high > medium > low。
+    canonical_form:
+      structure: enum
+      allowed_values:
+        - critical
+        - high
+        - medium
+        - low
+      ordering: "critical > high > medium > low"
+      default_value: medium
+    aliases:
+      - 严重级别
+      - severity_level
+      - impact_level
+      - seriousness
+    constraints:
+      structural:
+        - rule: "value must be one of the four allowed enum values (case-sensitive)"
+          severity: error
+      semantic:
+        - rule: "in the context of alert, critical implies immediate human response required"
+          severity: warning
+        - rule: "in the context of incident, critical implies service-wide or revenue-impacting degradation"
+          severity: warning
+    usage_contexts:
+      - intent: alert_generation
+        role: "驱动通知渠道选择和响应 SLA 的分级依据"
+      - intent: incident_summary
+        role: "决定摘要详细程度和通知范围"
+    version_introduced: "1.0.0"
+    stability: stable
+
+  # ---------------------------------------------------------------------------
+  # priority — 优先级
+  # ---------------------------------------------------------------------------
+  - name: priority
+    description: |
+      优先级（Priority）是衡量事件处理紧迫程度的分类维度，
+      用于工作队列排序和资源分配决策。
+      优先级与严重级别相关但不等价：高严重级别通常对应高优先级，
+      但业务上下文可能导致优先级调整（例如，低严重但高业务影响的场景）。
+    canonical_form:
+      structure: enum
+      allowed_values:
+        - p0
+        - p1
+        - p2
+        - p3
+      ordering: "p0 > p1 > p2 > p3"
+      default_value: p2
+      mapping_guide: |
+        推荐映射关系（非强制，允许业务覆盖）：
+          critical -> p0
+          high     -> p1
+          medium   -> p2
+          low      -> p3
+    aliases:
+      - 优先级
+      - priority_level
+      - urgency
+      - precedence
+    constraints:
+      structural:
+        - rule: "value must be one of p0, p1, p2, p3 (case-sensitive)"
+          severity: error
+      semantic:
+        - rule: "severity == 'critical' strongly implies priority == 'p0'; deviation requires explicit justification in metadata.override_reason"
+          severity: warning
+        - rule: "p0 items must not be blocked by lower-priority items in the processing queue"
+          severity: error
+    usage_contexts:
+      - intent: alert_generation
+        role: "告警处理队列的排序依据"
+    version_introduced: "1.0.0"
+    stability: stable
+
+  # ---------------------------------------------------------------------------
+  # metric — 指标
+  # ---------------------------------------------------------------------------
+  - name: metric
+    description: |
+      指标（Metric）是对系统某方面可量化状态的测量值。
+      指标是时间序列数据的基本单元，包含名称、数值、时间戳和维度标签。
+      指标作为告警的输入数据源，驱动阈值判断。
+    canonical_form:
+      structure: object
+      required_fields:
+        - metric_name
+        - value
+        - timestamp
+        - unit
+      field_types:
+        metric_name: string (dot-notation, e.g., 'system.cpu.usage_percent')
+        value: number
+        timestamp: string (ISO 8601)
+        unit: string
+      optional_fields:
+        - labels
+        - source_host
+        - collection_interval_ms
+    aliases:
+      - 指标
+      - measurement
+      - timeseries_point
+      - datapoint
+    constraints:
+      structural:
+        - field: metric_name
+          rule: "must use dot-notation with at least one dot, max 128 chars"
+          severity: error
+        - field: value
+          rule: "must be a finite number"
+          severity: error
+        - field: timestamp
+          rule: "must be a valid ISO 8601 timestamp"
+          severity: error
+      semantic:
+        - rule: "timestamp should not be in the future by more than 60 seconds (clock skew tolerance)"
+          severity: warning
+        - rule: "timestamp should not be older than retention_period of the metric namespace"
+          severity: warning
+    version_introduced: "1.0.0"
+    stability: stable
+
+  # ---------------------------------------------------------------------------
+  # threshold — 阈值
+  # ---------------------------------------------------------------------------
+  - name: threshold
+    description: |
+      阈值（Threshold）是触发告警的边界条件定义。
+      阈值定义了指标值的可接受范围，超出范围即触发告警条件。
+      阈值可以是静态的（固定数值）或动态的（基于历史数据计算）。
+    canonical_form:
+      structure: object
+      required_fields:
+        - comparison_op
+        - boundary_value
+        - metric_name
+      field_types:
+        comparison_op: enum [gt, gte, lt, lte, eq, neq]
+        boundary_value: number
+        metric_name: string
+      optional_fields:
+        - window_duration_ms
+        - evaluation_count
+        - is_dynamic
+        - dynamic_config
+    aliases:
+      - 阈值
+      - threshold_rule
+      - limit
+      - boundary
+    constraints:
+      structural:
+        - field: comparison_op
+          rule: "must be one of gt, gte, lt, lte, eq, neq"
+          severity: error
+        - field: boundary_value
+          rule: "must be a finite number"
+          severity: error
+      semantic:
+        - rule: "boundary_value must be comparable with the referenced metric's value type and unit"
+          severity: error
+        - rule: "if is_dynamic is true, dynamic_config must be present and valid"
+          severity: error
+    version_introduced: "1.0.0"
+    stability: stable
+
+  # ---------------------------------------------------------------------------
+  # timeline — 时间线
+  # ---------------------------------------------------------------------------
+  - name: timeline
+    description: |
+      时间线（Timeline）是按时间顺序排列的事件序列，
+      用于记录故障生命周期中的关键节点和状态转换。
+      时间线是故障复盘和根因分析的核心素材。
+    canonical_form:
+      structure: object
+      required_fields:
+        - events
+      field_types:
+        events: array of TimelineEvent
+      event_structure:
+        required_fields:
+          - event_id
+          - timestamp
+          - event_type
+          - actor
+        optional_fields:
+          - description
+          - metadata
+      event_type_enum:
+        - triggered
+        - acknowledged
+        - escalated
+        - action_taken
+        - status_changed
+        - resolved
+        - noted
+    aliases:
+      - 时间线
+      - event_sequence
+      - chronology
+    constraints:
+      structural:
+        - field: events
+          rule: "must be a non-empty array"
+          severity: error
+      semantic:
+        - rule: "events must be strictly ordered by timestamp ascending"
+          severity: error
+        - rule: "first event type must be 'triggered'"
+          severity: error
+        - rule: "event_id must be unique within the timeline"
+          severity: error
+    usage_contexts:
+      - intent: incident_summary
+        role: "故障摘要中时间线部分的数据结构"
+    version_introduced: "1.0.0"
+    stability: stable
