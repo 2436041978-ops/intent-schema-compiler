@@ -1,0 +1,590 @@
+# =============================================================================
+# Intent-Schema-Compiler :: Output Constraints — Response Schema Definition
+# =============================================================================
+# Purpose    : Define the JSON Schema structure that every LLM response must
+#              conform to.  Includes four-tier validation and fallback handling.
+# Version    : 1.0.0
+# Maintained : intent-schema-compiler/rules/output-constraints/
+# =============================================================================
+
+$schema: "https://intent-schema.io/v1/output-constraints.yaml"
+doc_id: "ISC-OC-RS-001"
+version: "1.0.0"
+last_updated: "2025-01-20"
+
+# ---------------------------------------------------------------------------
+# 1. RESPONSE SCHEMA — Top-level envelope definition
+# ---------------------------------------------------------------------------
+response_schema:
+  description: |
+    Every LLM response must be a single valid JSON object matching this schema.
+    No markdown fences, no leading/trailing prose, no multi-root JSON.
+
+  $id: "https://intent-schema.io/schemas/response-envelope-v1.json"
+  $schema: "http://json-schema.org/draft-07/schema#"
+
+  type: "object"
+  required:
+    - status
+    - data
+    - metadata
+
+  properties:
+    # --- 1.1 status --------------------------------------------------------
+    status:
+      type: "string"
+      enum:
+        - "success"     # All requested outputs generated correctly
+        - "partial"     # Some outputs generated; others failed or degraded
+        - "failure"     # No usable output; see error_details
+      description: |
+        Aggregated status of the response.  "partial" means at least one
+        requested artifact was produced, but at least one failed.
+
+    # --- 1.2 data ----------------------------------------------------------
+    data:
+      type: "object"
+      description: "Container for all business-payload objects."
+      required: []
+      additionalProperties: false
+      properties:
+        alert_card:
+          $ref: "#/response_schema/definitions/alert_card"
+          description: "Structured alert artifact (populated when intent=alert_generation)"
+
+        incident_summary:
+          $ref: "#/response_schema/definitions/incident_summary"
+          description: "Incident summary artifact (populated when intent=incident_summary)"
+
+        action_items:
+          type: "array"
+          description: "List of follow-up action items extracted or generated"
+          items:
+            type: "object"
+            required: ["id", "description", "priority"]
+            properties:
+              id:
+                type: "string"
+                pattern: "^ACT-[0-9]{6}$"
+                description: "Unique action-item identifier"
+              description:
+                type: "string"
+                minLength: 5
+                maxLength: 500
+                description: "Human-readable action description"
+              priority:
+                type: "string"
+                enum: ["p0", "p1", "p2", "p3"]
+              assignee:
+                type: "string"
+                description: "Optional assignee identifier"
+              due_date:
+                type: "string"
+                format: "date-time"
+                description: "Optional ISO-8601 due timestamp"
+
+        custom_artifacts:
+          type: "array"
+          description: "Extension point for scenario-specific artifacts"
+          items:
+            type: "object"
+            required: ["artifact_type", "payload"]
+            properties:
+              artifact_type:
+                type: "string"
+                pattern: "^[a-z][a-z0-9_-]{1,63}$"
+              payload:
+                type: "object"
+                description: "Arbitrary artifact payload (schema validated separately)"
+
+    # --- 1.3 metadata ------------------------------------------------------
+    metadata:
+      type: "object"
+      description: "Provenance and generation metadata (read-only, not business data)"
+      required:
+        - generation_id
+        - generated_at
+        - model_info
+        - request_fingerprint
+      properties:
+        generation_id:
+          type: "string"
+          format: "uuid"
+          description: "Unique identifier for this response generation event"
+
+        generated_at:
+          type: "string"
+          format: "date-time"
+          description: "ISO-8601 timestamp when response generation completed"
+
+        model_info:
+          type: "object"
+          required: ["provider", "model_name", "version"]
+          properties:
+            provider:
+              type: "string"
+              description: "LLM provider (e.g. openai, anthropic)"
+            model_name:
+              type: "string"
+              description: "Specific model name (e.g. gpt-4, claude-3-opus)"
+            version:
+              type: "string"
+              description: "Model version or deployment tag"
+
+        request_fingerprint:
+          type: "string"
+          description: |
+            SHA-256 hash of (sorted prompt tokens + schema version tag).
+            Enables deterministic cache lookup and replay detection.
+
+        intent_detected:
+          type: "string"
+          description: "The intent classifier label assigned to this request"
+
+        confidence_scores:
+          type: "object"
+          description: "Per-stage confidence metrics"
+          properties:
+            intent_classification:
+              type: "number"
+              minimum: 0.0
+              maximum: 1.0
+            schema_adherence:
+              type: "number"
+              minimum: 0.0
+              maximum: 1.0
+            output_quality:
+              type: "number"
+              minimum: 0.0
+              maximum: 1.0
+
+        latency_ms:
+          type: "integer"
+          description: "End-to-end generation latency in milliseconds"
+          minimum: 0
+
+        tokens_consumed:
+          type: "object"
+          properties:
+            prompt_tokens:
+              type: "integer"
+              minimum: 0
+            completion_tokens:
+              type: "integer"
+              minimum: 0
+            total_tokens:
+              type: "integer"
+              minimum: 0
+
+    # --- 1.4 error_details (only when status != success) -------------------
+    error_details:
+      type: "array"
+      description: "Non-empty when status is partial or failure"
+      items:
+        type: "object"
+        required: ["code", "message", "severity"]
+        properties:
+          code:
+            type: "string"
+            enum:
+              - "SCHEMA_VIOLATION"      # Output did not match schema
+              - "VALIDATION_FAILED"     # Business-rule validation failed
+              - "SEMANTIC_INCOHERENT"   # Output is structurally valid but nonsense
+              - "GENERATION_ERROR"      # LLM returned error / empty
+              - "TIMEOUT"               # Generation exceeded deadline
+              - "RATE_LIMITED"          # Quota or rate limit hit
+              - "SAFETY_BLOCKED"        # Output blocked by safety filter
+              - "UNKNOWN"               # Unclassified error
+          message:
+            type: "string"
+            description: "Human-readable error description"
+          severity:
+            type: "string"
+            enum: ["warning", "error", "critical"]
+          target_field:
+            type: "string"
+            description: "JSONPath to the offending field, if applicable"
+          suggestion:
+            type: "string"
+            description: "Suggested remediation or retry strategy"
+
+  # --- 1.5 Schema definitions (reusable sub-structures) -------------------
+  definitions:
+
+    # =========================================================================
+    # ALERT CARD — Complete sub-structure definition
+    # =========================================================================
+    alert_card:
+      type: "object"
+      description: |
+        A structured alert artifact representing a single detected anomaly or
+        event requiring operator attention.
+      required:
+        - alert_id
+        - severity
+        - title
+        - source
+        - triggered_at
+        - description
+        - impact
+        - recommended_actions
+      properties:
+        alert_id:
+          type: "string"
+          pattern: "^ALERT-[A-Z]{3}-[0-9]{8}-[0-9]{4}$"
+          description: |
+            Unique alert identifier. Format: ALERT-<SOURCE_ABBREV>-<YYYYMMDD>-<SEQ>
+            Example: ALERT-PMT-20250120-0042
+
+        severity:
+          type: "string"
+          enum: ["critical", "high", "medium", "low", "info"]
+          description: |
+            critical = immediate human response required
+            high     = human response within 15 min required
+            medium   = human response within 1 hour
+            low      = next business day acceptable
+            info     = informational only, no action required
+
+        title:
+          type: "string"
+          minLength: 5
+          maxLength: 120
+          pattern: "^[^<>]+$"
+          description: "Concise, human-readable alert summary (no HTML)"
+
+        source:
+          type: "object"
+          required: ["system", "component"]
+          properties:
+            system:
+              type: "string"
+              description: "Originating system (e.g. payment-gateway, auth-service)"
+            component:
+              type: "string"
+              description: "Sub-component or module within the system"
+            host:
+              type: "string"
+              description: "Optional hostname or instance identifier"
+            region:
+              type: "string"
+              description: "Optional cloud region / datacenter"
+
+        triggered_at:
+          type: "string"
+          format: "date-time"
+          description: "ISO-8601 timestamp when the alert condition first fired"
+
+        resolved_at:
+          type: ["string", "null"]
+          format: "date-time"
+          description: "ISO-8601 timestamp when resolved; null if still active"
+
+        description:
+          type: "string"
+          minLength: 20
+          maxLength: 2000
+          description: "Detailed alert description including observed symptoms"
+
+        root_cause:
+          type: ["string", "null"]
+          maxLength: 1000
+          description: "Identified or hypothesized root cause; null if unknown"
+
+        impact:
+          type: "object"
+          required: ["scope", "affected_users"]
+          properties:
+            scope:
+              type: "string"
+              enum:
+                - "global"           # All users / all regions
+                - "regional"         # Single region
+                - "service"          # Single service, all users
+                - "partial"          # Subset of users or features
+                - "internal"         # Internal tools only, no customer impact
+            affected_users:
+              type: ["integer", "string"]
+              description: |
+                Estimated count of affected users, or "unknown" / "n/a"
+            sla_breach:
+              type: "boolean"
+              description: "Whether any SLA commitment is breached"
+            revenue_impact_usd:
+              type: ["number", "null"]
+              description: "Estimated revenue impact in USD; null if not quantified"
+
+        symptoms:
+          type: "array"
+          description: "Observable symptoms that led to this alert"
+          items:
+            type: "object"
+            required: ["metric", "observed_value", "threshold"]
+            properties:
+              metric:
+                type: "string"
+                description: "Metric name (e.g. error_rate_p99, latency_ms)"
+              observed_value:
+                type: ["number", "string"]
+                description: "Actual observed value at trigger time"
+              threshold:
+                type: ["number", "string"]
+                description: "Configured threshold that was breached"
+              comparison:
+                type: "string"
+                enum: [">", ">=", "<", "<=", "==", "!=", "changed"]
+                description: "Comparison operator that triggered the alert"
+
+        recommended_actions:
+          type: "array"
+          minItems: 1
+          description: "Ordered list of recommended remediation steps"
+          items:
+            type: "object"
+            required: ["step_number", "action"]
+            properties:
+              step_number:
+                type: "integer"
+                minimum: 1
+              action:
+                type: "string"
+                minLength: 5
+                maxLength: 300
+              automation_available:
+                type: "boolean"
+                default: false
+                description: "Whether a runbook or automation exists for this step"
+              runbook_url:
+                type: ["string", "null"]
+                format: "uri"
+                description: "Deep link to runbook or playbook, if available"
+              estimated_duration_min:
+                type: ["integer", "null"]
+                description: "Estimated time to complete this step"
+
+        runbook_context:
+          type: ["object", "null"]
+          description: "If an automated runbook was triggered, its state"
+          properties:
+            runbook_id:
+              type: "string"
+            triggered_at:
+              type: "string"
+              format: "date-time"
+            status:
+              type: "string"
+              enum: ["running", "completed", "failed", "cancelled"]
+            logs_url:
+              type: "string"
+              format: "uri"
+
+        links:
+          type: "array"
+          description: "Reference links (dashboards, logs, traces, tickets)"
+          items:
+            type: "object"
+            required: ["label", "url"]
+            properties:
+              label:
+                type: "string"
+              url:
+                type: "string"
+                format: "uri"
+              type:
+                type: "string"
+                enum: ["dashboard", "logs", "trace", "ticket", "metric", "wiki", "other"]
+
+    # =========================================================================
+    # INCIDENT SUMMARY — Reference sub-structure (lightweight)
+    # =========================================================================
+    incident_summary:
+      type: "object"
+      required:
+        - incident_id
+        - title
+        - timeline
+        - affected_services
+        - resolution_status
+      properties:
+        incident_id:
+          type: "string"
+          pattern: "^INC-[0-9]{8}-[0-9]{4}$"
+        title:
+          type: "string"
+          maxLength: 200
+        summary_text:
+          type: "string"
+          maxLength: 5000
+          description: "Blameless narrative summary of the incident"
+        timeline:
+          type: "array"
+          items:
+            type: "object"
+            required: ["timestamp", "event"]
+            properties:
+              timestamp:
+                type: "string"
+                format: "date-time"
+              event:
+                type: "string"
+              actor:
+                type: ["string", "null"]
+              automated:
+                type: "boolean"
+                default: false
+        affected_services:
+          type: "array"
+          items:
+            type: "string"
+        root_cause:
+          type: ["string", "null"]
+        lessons_learned:
+          type: "array"
+          items:
+            type: "string"
+        resolution_status:
+          type: "string"
+          enum: ["ongoing", "mitigated", "resolved"]
+
+# ---------------------------------------------------------------------------
+# 2. VALIDATION RULES — External reference
+# ---------------------------------------------------------------------------
+# ⚠️ 本文件只保留标准 JSON Schema 结构定义（契约层）。
+# 四层校验逻辑（语法/结构/语义/业务）已迁移至：
+#   → compilers/validation-compiler.md（思维链伪代码 + 完整校验规则）
+#
+# 职责分离原则：
+#   - response-schema.yaml  = 可被标准 JSON Schema 解析器消费的结构定义
+#   - validation-compiler.md = 四层校验的伪代码逻辑与可执行规范
+#   - 标准校验器（如 AJV）应直接解析本文件的 response_schema 部分
+# ---------------------------------------------------------------------------
+# validation_rules: → see compilers/validation-compiler.md
+
+# ---------------------------------------------------------------------------
+# 3. FALLBACK RESPONSE — Degraded-output specification
+# ---------------------------------------------------------------------------
+fallback_response:
+  description: |
+    When any validation tier rejects the response, the system emits a
+    fallback_response.  This guarantees the downstream consumer always
+    receives a well-formed envelope, even on total generation failure.
+
+  # --- 3.1 Failure-level fallback configurations ---------------------------
+  failure_levels:
+    syntax_failure:
+      # LLM output is not valid JSON at all
+      status: "failure"
+      data_strategy: "empty_object"
+      preserve_raw: true
+      raw_storage_ttl_hours: 24
+      error_codes: ["SCHEMA_VIOLATION", "GENERATION_ERROR", "TIMEOUT"]
+      retry:
+        allowed: true
+        max_retries: 2
+        backoff_strategy: "exponential"
+        base_delay_ms: 1000
+        max_delay_ms: 8000
+
+    structure_failure:
+      # JSON parses but violates schema
+      status: "failure"
+      data_strategy: "schema_repair"
+      repair_method: "inject_missing_defaults"
+      preserve_raw: true
+      raw_storage_ttl_hours: 24
+      error_codes: ["SCHEMA_VIOLATION"]
+      retry:
+        allowed: true
+        max_retries: 1
+        backoff_strategy: "fixed"
+        base_delay_ms: 2000
+
+    semantic_failure:
+      # Structurally valid but semantically incoherent
+      status: "partial"
+      data_strategy: "deliver_with_warnings"
+      preserve_raw: false
+      error_codes: ["SEMANTIC_INCOHERENT", "VALIDATION_FAILED"]
+      retry:
+        allowed: false
+        # Do not retry — semantic failures are LLM reasoning errors,
+        # retries likely produce same result
+
+    safety_blocked:
+      # Output blocked by safety filter
+      status: "failure"
+      data_strategy: "empty_object"
+      preserve_raw: false
+      error_codes: ["SAFETY_BLOCKED"]
+      retry:
+        allowed: false
+
+  # --- 3.2 Default fallback response template -----------------------------
+  default_fallback:
+    status: "failure"
+    data: {}
+    metadata:
+      generation_id: "{{uuid}}"
+      generated_at: "{{iso_timestamp}}"
+      model_info:
+        provider: "{{model.provider}}"
+        model_name: "{{model.name}}"
+        version: "{{model.version}}"
+      request_fingerprint: "{{request.fingerprint}}"
+      latency_ms: 0
+      tokens_consumed:
+        prompt_tokens: 0
+        completion_tokens: 0
+        total_tokens: 0
+    error_details:
+      - code: "UNKNOWN"
+        message: "Response generation failed and no specific error was captured."
+        severity: "critical"
+        suggestion: "Contact platform engineering.  Reference generation_id in escalation."
+
+  # --- 3.3 Schema-repair default values -----------------------------------
+  schema_repair_defaults:
+    # Injected when inject_missing_defaults repair method is active
+    alert_card:
+      alert_id: "ALERT-UNK-00000000-0000"
+      severity: "medium"
+      title: "[Auto-generated] Alert details unavailable due to generation error"
+      source:
+        system: "unknown"
+        component: "unknown"
+      triggered_at: "{{iso_timestamp}}"
+      resolved_at: null
+      description: "The LLM failed to generate a proper alert description.  Manual investigation required."
+      root_cause: null
+      impact:
+        scope: "unknown"
+        affected_users: "unknown"
+        sla_breach: false
+        revenue_impact_usd: null
+      symptoms: []
+      recommended_actions:
+        - step_number: 1
+          action: "Review raw generation logs for error details"
+          automation_available: false
+          runbook_url: null
+          estimated_duration_min: null
+      runbook_context: null
+      links: []
+
+# ---------------------------------------------------------------------------
+# 4. SCHEMA EXTENSION POINT
+# ---------------------------------------------------------------------------
+# New artifact types may be registered under response_schema.properties.data
+# by adding a $ref entry.  Extension schemas must be co-located in
+# schemas/ and versioned independently.
+# ---------------------------------------------------------------------------
+extensibility:
+  new_artifact_registration:
+    schema_directory: "schemas/"
+    naming_convention: "<artifact-name>-v<major>.yaml"
+    min_required_fields: ["type", "required", "properties"]
+    auto_register: false    # Require explicit allow-list entry
+    allowed_extensions:
+      - "alert_card"
+      - "incident_summary"
+      - "action_items"
