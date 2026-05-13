@@ -1,0 +1,413 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://intent-schema-compiler.dev/kernel/intent-schema.json",
+  "title": "Intent Schema — 意图契约元定义",
+  "description": "Schema-As-Code 框架的核心元 Schema。定义意图（Intent）的形式化结构，作为编译器解析、校验、分发意图契约的单一事实来源。",
+  "version": "1.0.0",
+  "type": "object",
+  "required": ["intent_id", "intent_name", "version", "description", "semantic_tokens", "input_constraints", "output_constraints"],
+  "additionalProperties": false,
+  "definitions": {
+    "SemanticTokenRef": {
+      "type": "object",
+      "description": "对语义令牌注册表中令牌的引用声明",
+      "required": ["token_name", "required"],
+      "properties": {
+        "token_name": {
+          "type": "string",
+          "description": "语义令牌名称，必须与 semantic-tokens.yaml 中某令牌的 name 字段精确匹配"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "该令牌在意图实例化时是否为必选"
+        },
+        "cardinality": {
+          "type": "string",
+          "enum": ["single", "list", "map"],
+          "default": "single",
+          "description": "令牌的基数约束：单值、列表或映射"
+        },
+        "context_role": {
+          "type": "string",
+          "description": "该令牌在当前意图中的语义角色说明"
+        }
+      }
+    },
+    "ConstraintRef": {
+      "type": "object",
+      "description": "对约束规则的引用声明",
+      "required": ["constraint_id", "constraint_type"],
+      "properties": {
+        "constraint_id": {
+          "type": "string",
+          "description": "约束规则的唯一标识符"
+        },
+        "constraint_type": {
+          "type": "string",
+          "enum": ["schema", "semantic", "business", "security"],
+          "description": "约束类别：结构模式、语义规则、业务逻辑、安全策略"
+        },
+        "description": {
+          "type": "string",
+          "description": "约束规则的人类可读说明"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"],
+          "default": "error",
+          "description": "违反该约束时的处理级别"
+        }
+      }
+    },
+    "ValidationRuleRef": {
+      "type": "object",
+      "description": "校验规则引用，描述在编译/运行时对意图实例的验证逻辑",
+      "required": ["rule_id", "trigger_stage"],
+      "properties": {
+        "rule_id": {
+          "type": "string",
+          "description": "校验规则唯一标识符"
+        },
+        "trigger_stage": {
+          "type": "string",
+          "enum": ["parse", "compile", "runtime"],
+          "description": "校验触发阶段：解析期、编译期、运行期"
+        },
+        "rule_expression": {
+          "type": "string",
+          "description": "校验规则的伪代码或表达式（如 JSON Path、CEL、Rego 等）"
+        },
+        "error_message": {
+          "type": "string",
+          "description": "校验失败时返回的标准化错误信息模板"
+        }
+      }
+    },
+    "FallbackStrategy": {
+      "type": "object",
+      "description": "意图执行失败时的降级策略定义",
+      "required": ["strategy_type"],
+      "properties": {
+        "strategy_type": {
+          "type": "string",
+          "enum": ["abort", "default_value", "alternative_intent", "human_escalation", "degraded_output"],
+          "description": "降级策略类型：中止、返回默认值、切换替代意图、人工升级、降级输出"
+        },
+        "alternative_intent_id": {
+          "type": "string",
+          "description": "当 strategy_type 为 alternative_intent 时，指向的替代意图 ID"
+        },
+        "default_output": {
+          "type": "object",
+          "description": "当 strategy_type 为 default_value 或 degraded_output 时使用的默认输出",
+          "additionalProperties": true
+        },
+        "escalation_target": {
+          "type": "string",
+          "description": "当 strategy_type 为 human_escalation 时的升级目标（如邮箱、工单系统）"
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "触发降级前的最大重试次数"
+        },
+        "retry_backoff_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1000,
+          "description": "重试间隔（毫秒），支持指数退避"
+        }
+      }
+    },
+    "MetadataBlock": {
+      "type": "object",
+      "description": "意图的元信息块",
+      "properties": {
+        "author": {
+          "type": "string",
+          "description": "意图定义作者"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "创建时间（ISO 8601）"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "最后更新时间（ISO 8601）"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "分类标签"
+        },
+        "domain": {
+          "type": "string",
+          "description": "所属领域（如 observability, security, cost-management）"
+        },
+        "stability": {
+          "type": "string",
+          "enum": ["experimental", "stable", "deprecated"],
+          "default": "experimental",
+          "description": "稳定性级别"
+        }
+      }
+    }
+  },
+  "properties": {
+    "intent_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "意图唯一标识符。使用 snake_case，必须以小写字母开头，全局唯一"
+    },
+    "intent_name": {
+      "type": "string",
+      "description": "意图的人类可读名称"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$",
+      "description": "意图定义版本号，遵循 SemVer 2.0.0 规范"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 10,
+      "description": "意图的完整描述，需涵盖目的、输入、输出和行为边界，不少于 10 个字符"
+    },
+    "semantic_tokens": {
+      "type": "array",
+      "description": "本意图依赖的语义令牌引用列表。令牌必须在语义令牌注册表中预先声明。",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/SemanticTokenRef"
+      }
+    },
+    "input_constraints": {
+      "type": "array",
+      "description": "对输入参数的约束规则引用。定义输入数据必须满足的结构、语义和业务条件。",
+      "items": {
+        "$ref": "#/definitions/ConstraintRef"
+      }
+    },
+    "output_constraints": {
+      "type": "array",
+      "description": "对输出结果的约束规则引用。定义输出数据必须满足的结构、语义和业务条件。",
+      "items": {
+        "$ref": "#/definitions/ConstraintRef"
+      }
+    },
+    "validation_rules": {
+      "type": "array",
+      "description": "编译器和运行时对意图实例执行的校验规则列表。",
+      "items": {
+        "$ref": "#/definitions/ValidationRuleRef"
+      }
+    },
+    "fallback_strategy": {
+      "$ref": "#/definitions/FallbackStrategy",
+      "description": "意图执行失败时的降级策略。若未指定，默认采用 abort 策略。"
+    },
+    "metadata": {
+      "$ref": "#/definitions/MetadataBlock",
+      "description": "意图的元信息"
+    }
+  },
+
+  "examples": [
+    {
+      "intent_id": "alert_generation",
+      "intent_name": "告警生成",
+      "version": "1.2.0",
+      "description": "根据监控指标和阈值规则生成标准化告警事件。输入包含指标名称、当前值、阈值和严重级别；输出为结构化告警记录，包含唯一告警 ID、时间戳、摘要和推荐处置动作。",
+      "semantic_tokens": [
+        {
+          "token_name": "alert",
+          "required": true,
+          "cardinality": "single",
+          "context_role": "输出的核心语义实体——告警事件"
+        },
+        {
+          "token_name": "severity",
+          "required": true,
+          "cardinality": "single",
+          "context_role": "告警的严重级别，驱动通知渠道选择和响应 SLA"
+        },
+        {
+          "token_name": "priority",
+          "required": false,
+          "cardinality": "single",
+          "context_role": "告警处理优先级，影响队列排序"
+        }
+      ],
+      "input_constraints": [
+        {
+          "constraint_id": "metric_value_numeric",
+          "constraint_type": "schema",
+          "description": "指标当前值必须为数值类型",
+          "severity": "error"
+        },
+        {
+          "constraint_id": "threshold_comparable",
+          "constraint_type": "semantic",
+          "description": "阈值必须与指标值类型兼容（同为数值或同为枚举）",
+          "severity": "error"
+        },
+        {
+          "constraint_id": "severity_range_valid",
+          "constraint_type": "business",
+          "description": "严重级别必须在语义令牌 severity 的允许值范围内",
+          "severity": "error"
+        }
+      ],
+      "output_constraints": [
+        {
+          "constraint_id": "alert_id_uuid",
+          "constraint_type": "schema",
+          "description": "告警 ID 必须符合 UUID v4 格式",
+          "severity": "error"
+        },
+        {
+          "constraint_id": "alert_summary_nonempty",
+          "constraint_type": "semantic",
+          "description": "告警摘要不能为空字符串且长度不超过 256 字符",
+          "severity": "error"
+        },
+        {
+          "constraint_id": "timestamp_iso8601",
+          "constraint_type": "schema",
+          "description": "告警时间戳必须符合 ISO 8601 格式",
+          "severity": "error"
+        }
+      ],
+      "validation_rules": [
+        {
+          "rule_id": "check_severity_priority_consistency",
+          "trigger_stage": "compile",
+          "rule_expression": "severity == 'critical' implies priority == 'p0'",
+          "error_message": "严重级别为 critical 时，优先级必须为 p0"
+        },
+        {
+          "rule_id": "check_metric_threshold_delta",
+          "trigger_stage": "runtime",
+          "rule_expression": "abs(metric_value - threshold) / threshold > 0.01",
+          "error_message": "指标值与阈值的偏差率必须超过 1% 才能触发告警"
+        }
+      ],
+      "fallback_strategy": {
+        "strategy_type": "degraded_output",
+        "default_output": {
+          "alert_id": "",
+          "severity": "unknown",
+          "summary": "告警生成失败，降级输出",
+          "recommendation": "请人工核查指标数据"
+        },
+        "max_retries": 2,
+        "retry_backoff_ms": 500
+      },
+      "metadata": {
+        "author": "sre-team@company.dev",
+        "created_at": "2024-01-15T08:00:00Z",
+        "updated_at": "2024-06-20T14:30:00Z",
+        "tags": ["observability", "alerting", "sre"],
+        "domain": "observability",
+        "stability": "stable"
+      }
+    },
+    {
+      "intent_id": "incident_summary",
+      "intent_name": "故障摘要",
+      "version": "2.0.0",
+      "description": "对故障事件（Incident）进行多维度分析和结构化摘要生成。聚合相关告警、根因分析、影响面评估和处置时间线，输出可供值班经理和干系人快速理解的故障摘要报告。",
+      "semantic_tokens": [
+        {
+          "token_name": "incident",
+          "required": true,
+          "cardinality": "single",
+          "context_role": "输入的核心语义实体——故障事件"
+        },
+        {
+          "token_name": "alert",
+          "required": true,
+          "cardinality": "list",
+          "context_role": "与故障关联的告警列表，作为摘要的素材来源"
+        },
+        {
+          "token_name": "severity",
+          "required": true,
+          "cardinality": "single",
+          "context_role": "故障的严重级别，决定摘要的详细程度和通知范围"
+        }
+      ],
+      "input_constraints": [
+        {
+          "constraint_id": "incident_id_exists",
+          "constraint_type": "schema",
+          "description": "故障 ID 必须存在且为非空字符串",
+          "severity": "error"
+        },
+        {
+          "constraint_id": "alert_list_min_size",
+          "constraint_type": "business",
+          "description": "关联告警列表至少包含 1 条记录",
+          "severity": "error"
+        },
+        {
+          "constraint_id": "incident_time_range_valid",
+          "constraint_type": "semantic",
+          "description": "故障开始时间不得晚于结束时间（若已结束）",
+          "severity": "error"
+        }
+      ],
+      "output_constraints": [
+        {
+          "constraint_id": "summary_sections_complete",
+          "constraint_type": "schema",
+          "description": "摘要报告必须包含：概述、根因、影响面、时间线、后续行动五个部分",
+          "severity": "error"
+        },
+        {
+          "constraint_id": "root_cause_max_length",
+          "constraint_type": "semantic",
+          "description": "根因分析字段不超过 500 字符",
+          "severity": "warning"
+        },
+        {
+          "constraint_id": "impact_services_listed",
+          "constraint_type": "business",
+          "description": "影响面必须列出受影响服务名称列表",
+          "severity": "error"
+        }
+      ],
+      "validation_rules": [
+        {
+          "rule_id": "check_severity_summary_depth",
+          "trigger_stage": "compile",
+          "rule_expression": "severity == 'critical' implies summary.word_count >= 200",
+          "error_message": "严重级别为 critical 的故障摘要不得少于 200 字"
+        },
+        {
+          "rule_id": "check_timeline_chronological",
+          "trigger_stage": "runtime",
+          "rule_expression": "timeline.events[].timestamp is strictly increasing",
+          "error_message": "时间线事件必须按时间严格递增排列"
+        }
+      ],
+      "fallback_strategy": {
+        "strategy_type": "human_escalation",
+        "escalation_target": "oncall-manager@company.dev",
+        "max_retries": 1,
+        "retry_backoff_ms": 1000
+      },
+      "metadata": {
+        "author": "platform-team@company.dev",
+        "created_at": "2024-03-01T10:00:00Z",
+        "updated_at": "2024-07-10T09:15:00Z",
+        "tags": ["incident-management", "summarization", "sre"],
+        "domain": "observability",
+        "stability": "stable"
+      }
+    }
+  ]
+}
