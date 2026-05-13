@@ -1,0 +1,420 @@
+# =============================================================================
+# AI Interaction Pattern — Alert Card
+# =============================================================================
+# pattern_id    : ai-interaction/alert-card
+# version       : 1.0.0
+# description   : Defines a reusable alert-card interaction pattern for AI-driven
+#                 incident response. The pattern structures how an AI system
+#                 communicates critical operational alerts to human operators
+#                 or downstream automation pipelines.
+# =============================================================================
+
+pattern_id: ai-interaction/alert-card
+version: 1.0.0
+category: ai-interaction
+display_name: Alert Card
+
+overview:
+  summary: >
+    A structured, severity-driven alert communication pattern that transforms
+    raw fault signals into human-readable, actionable alert cards. The pattern
+    enforces consistent formatting, mandatory fields, and severity-calibrated
+    urgency semantics across P0 (critical), P1 (high), and P2 (medium) levels.
+  design_goals:
+    - Unify alert presentation across all AI-generated incident communications
+    - "Guarantee actionable output: every alert must contain impact assessment and at least one remediation recommendation"
+    - Enable machine-parseable alerts for downstream auto-remediation pipelines
+    - Preserve human readability for on-call engineers
+
+# =============================================================================
+# PATTERN BASE — Shared properties inherited by all severity variants
+# =============================================================================
+# 设计原则：所有变体（P0/P1/P2）共享同一套公共 Schema 和交互流程。
+# 变体仅覆盖 urgency_semantics、schema_overrides 和 required_channels。
+# 这种继承结构避免了 YAML 嵌套膨胀，同时保持各变体约束的可追溯性。
+# =============================================================================
+pattern_base:
+  id: "AI-ALERT"
+  name: "告警卡片基础模式"
+  description: |
+    Base pattern for all alert-card severity variants.  Defines the common
+    schema, interaction flow, and safety guardrails.  NOT instantiated
+    directly — always use one of the variants below.
+
+  schema:
+    type: object
+    required:
+      - pattern_id
+      - title
+      - severity
+      - description
+      - impact
+      - recommendation
+      - metadata
+
+    properties:
+      pattern_id:
+        type: string
+        const: ai-interaction/alert-card
+        description: Canonical pattern identifier for routing and validation.
+
+      title:
+        type: string
+        maxLength: 120
+        description: Concise, human-readable alert summary.
+        constraints:
+          - MUST NOT contain severity labels (e.g., "[P0]", "CRITICAL")
+          - MUST use imperative or present-tense verb form
+          - MUST be unique within a 24-hour window for the same service
+
+      severity:
+        type: string
+        enum: [P0, P1, P2]
+        description: >
+          Severity level calibrated to organizational incident response
+          definitions.
+
+      description:
+        type: object
+        required: [summary, details]
+        properties:
+          summary:
+            type: string
+            maxLength: 280
+            description: One-sentence executive summary.
+          details:
+            type: string
+            maxLength: 2000
+            description: >
+              Technical details including observed symptoms, affected
+              components, and initial diagnostic signals.
+
+      impact:
+        type: object
+        required: [scope, severity_assessment, user_facing]
+        properties:
+          scope:
+            type: string
+            description: Blast radius — services, regions, or user segments affected.
+          severity_assessment:
+            type: string
+            enum:
+              - complete_outage       # 100% service unavailability
+              - severe_degradation    # >50% performance drop or partial unavailability
+              - moderate_degradation  # <50% performance drop, workarounds exist
+              - isolated_impact       # Single tenant / region affected
+          user_facing:
+            type: boolean
+            description: Whether end users directly experience the fault.
+          estimated_affected_users:
+            type: integer
+            minimum: 0
+            description: Approximate count of affected users (0 if unknown).
+
+      recommendation:
+        type: object
+        required: [immediate_actions, long_term_fix]
+        properties:
+          immediate_actions:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [action, rationale, estimated_effort]
+              properties:
+                action:
+                  type: string
+                  description: Concrete step to mitigate or resolve.
+                rationale:
+                  type: string
+                  description: Why this action is expected to help.
+                estimated_effort:
+                  type: string
+                  enum: [minutes, hours, days]
+          long_term_fix:
+            type: string
+            description: Recommended permanent resolution or preventive measure.
+          runbook_link:
+            type: string
+            format: uri
+            description: Link to the relevant operational runbook.
+
+      metadata:
+        type: object
+        required: [alert_id, generated_at, source, version]
+        properties:
+          alert_id:
+            type: string
+            format: uuid
+            description: Unique alert identifier.
+          generated_at:
+            type: string
+            format: date-time
+            description: ISO-8601 timestamp of alert generation.
+          source:
+            type: object
+            required: [system, signal_type]
+            properties:
+              system:
+                type: string
+                description: Originating monitoring or AI system.
+              signal_type:
+                type: string
+                enum: [metric_threshold, log_anomaly, trace_anomaly, user_report, ai_inference]
+          version:
+            type: string
+            description: Schema version of the alert card.
+          correlation_id:
+            type: string
+            description: >
+              Trace identifier linking this alert to related signals,
+              logs, or incident tickets.
+
+# =============================================================================
+# Interaction Flow
+# =============================================================================
+interaction_flow:
+  description: >
+    Defines the end-to-end lifecycle of an alert-card from trigger
+    condition to final structured output.
+
+  trigger_conditions:
+    - name: metric_threshold_breach
+      description: A monitored metric exceeds its critical threshold for >N consecutive evaluation periods.
+      parameters:
+        - metric_name
+        - threshold_value
+        - consecutive_periods
+    - name: anomaly_detected
+      description: AI anomaly detection model flags abnormal behavior pattern.
+      parameters:
+        - model_name
+        - anomaly_score
+        - baseline_deviation
+    - name: user_report_aggregated
+      description: Aggregated user complaints exceed a velocity threshold.
+      parameters:
+        - report_count
+        - time_window
+    - name: upstream_dependency_failure
+      description: Critical upstream service health check fails.
+      parameters:
+        - dependency_name
+        - health_check_endpoint
+
+  processing_steps:
+    - step: 1
+      name: signal_ingestion
+      description: Ingest and normalize the triggering signal.
+      output: normalized_signal
+    - step: 2
+      name: context_enrichment
+      description: >
+        Enrich signal with runtime context — service topology,
+        recent deployments, historical incident correlation.
+      output: enriched_context
+    - step: 3
+      name: severity_classification
+      description: Classify severity based on impact scope and user-facing assessment.
+      output: severity_label
+      rules:
+        - condition: user_facing == true AND severity_assessment in [complete_outage, severe_degradation]
+          result: P0
+        - condition: user_facing == true AND severity_assessment == moderate_degradation
+          result: P1
+        - condition: user_facing == false OR severity_assessment == isolated_impact
+          result: P2
+    - step: 4
+      name: recommendation_generation
+      description: Generate actionable recommendations from knowledge base and runbooks.
+      output: recommendation_set
+    - step: 5
+      name: structure_assembly
+      description: Assemble all components into the final alert-card schema.
+      output: alert_card_instance
+    - step: 6
+      name: validation
+      description: Validate assembled card against schema constraints.
+      output: validation_result
+    - step: 7
+      name: dispatch
+      description: Route validated alert to appropriate channels (pager, slack, webhook).
+      output: dispatch_receipt
+
+  output_format:
+    mime_type: application/json
+    schema_reference: "#/$defs/alert_card_schema"
+    compact_mode: false          # Pretty-printed for human readability
+    include_raw_signal: true     # Attach original trigger signal as attachment
+
+# =============================================================================
+# Variants
+# =============================================================================
+variants:
+  p0_critical:
+    extends: "pattern_base"
+    display_name: "P0 — Critical"
+    description: Complete or severe service outage with user-facing impact.
+    urgency_semantics:
+      response_sla: "5 minutes"
+      escalation_path: [primary_oncall, secondary_oncall, engineering_manager]
+      paging_policy: immediate_page
+    schema_overrides:
+      recommendation:
+        immediate_actions:
+          minItems: 2              # P0: at least 2 immediate actions required
+    required_channels: [pager, slack_critical, incident_bridge]
+    color_code: "#DC2626"        # red-600
+    icon: "alert-octagon"
+    constraints_added:
+      - P0 alerts MUST trigger immediate paging (no delay)
+      - P0 alerts MUST have escalation path to engineering manager
+
+  p1_high:
+    extends: "pattern_base"
+    display_name: "P1 — High"
+    description: Significant user-facing degradation with partial workarounds.
+    urgency_semantics:
+      response_sla: "30 minutes"
+      escalation_path: [primary_oncall, secondary_oncall]
+      paging_policy: delayed_page_after_10_min
+    schema_overrides:
+      recommendation:
+        immediate_actions:
+          minItems: 1              # P1: at least 1 immediate action
+    required_channels: [slack_high, ticket_system]
+    color_code: "#EA580C"        # orange-600
+    icon: "alert-triangle"
+    constraints_added:
+      - P1 alerts page after 10-min delay if unacknowledged
+
+  p2_medium:
+    extends: "pattern_base"
+    display_name: "P2 — Medium"
+    description: Moderate or isolated impact, no immediate user disruption.
+    urgency_semantics:
+      response_sla: "4 hours"
+      escalation_path: [primary_oncall]
+      paging_policy: no_page_notify_only
+    schema_overrides: {}           # P2: no overrides — inherits base schema as-is
+    required_channels: [ticket_system]
+    color_code: "#CA8A04"        # yellow-600
+    icon: "alert-circle"
+    constraints_added:
+      - P2 alerts are notification-only, no paging
+
+# =============================================================================
+# Examples
+# =============================================================================
+examples:
+  # ---------------------------------------------------------------------------
+  # Example 1: P0 Critical — Payment Service Outage
+  # ---------------------------------------------------------------------------
+  - id: ex-p0-payment-outage
+    variant: p0_critical
+    title: "Payment processing pipeline returning 503 errors across all regions"
+    severity: P0
+    description:
+      summary: "Payment service is completely unavailable, all checkout flows are failing."
+      details: >
+        Starting at 2024-06-15T08:23:00Z, the payment-gateway service began
+        returning HTTP 503 errors across all 3 production regions (us-east-1,
+        eu-west-1, ap-southeast-1). Error rate is 100%. The service health
+        endpoint /healthz reports "database connection pool exhausted."
+        Last successful deployment was payment-gateway v3.2.1 at 08:15:00Z
+        (8 minutes prior to incident onset). RDS CloudWatch metrics show
+        max_connections (1000) reached at 08:22:45Z. No active connection
+        release is observed.
+    impact:
+      scope: "Payment gateway (all regions); downstream checkout, subscription-renewal, and refund services"
+      severity_assessment: complete_outage
+      user_facing: true
+      estimated_affected_users: 45000
+    recommendation:
+      immediate_actions:
+        - action: "Immediately rollback payment-gateway to v3.2.0 via deployment pipeline."
+          rationale: "v3.2.1 introduced a connection leak in the payment retry loop. Rolling back eliminates the leaking code path."
+          estimated_effort: minutes
+        - action: "Manually terminate idle DB connections via RDS console to free pool capacity."
+          rationale: "Immediate relief while rollback propagates; buys time for connection pool recovery."
+          estimated_effort: minutes
+        - action: "Enable circuit-breaker on checkout service to degrade gracefully to queued-payment mode."
+          rationale: "Preserves user intent (cart contents) and allows asynchronous retry once payment recovers."
+          estimated_effort: minutes
+      long_term_fix: >
+        Fix connection leak in payment retry loop (ticket PAY-4821); add
+        connection pool saturation alarm with P0 auto-page; enforce
+        max-connection-per-request budget in code review checklist.
+      runbook_link: "https://runbooks.internal/payment-gateway/outage-rollback"
+    metadata:
+      alert_id: "01901234-5678-7abc-8def-0123456789ab"
+      generated_at: "2024-06-15T08:25:32Z"
+      source:
+        system: "ai-ops-engine"
+        signal_type: metric_threshold
+      version: "1.0.0"
+      correlation_id: "inc-2024-0615-001-payment"
+
+  # ---------------------------------------------------------------------------
+  # Example 2: P1 High — Search Latency Degradation
+  # ---------------------------------------------------------------------------
+  - id: ex-p1-search-latency
+    variant: p1_high
+    title: "Search API p99 latency spiked to 4.2s, affecting product discovery"
+    severity: P1
+    description:
+      summary: "Search service p99 latency degraded from 120ms baseline to 4.2s."
+      details: >
+        At 2024-06-15T14:10:00Z, search-service p99 latency jumped from
+        120ms to 4.2s over a 5-minute window. The Elasticsearch cluster
+        shows yellow health status — shard reallocation is in progress
+        following a node restart (search-es-data-7) at 14:05:00Z.
+        CPU on remaining data nodes is at 92%. Query queue depth is
+        847 (normal <50). User-facing symptom: product search results
+        take >4 seconds to load, causing elevated bounce rate.
+    impact:
+      scope: "Search service (us-east-1 only); product search, autocomplete, and recommendation carousel"
+      severity_assessment: severe_degradation
+      user_facing: true
+      estimated_affected_users: 12000
+    recommendation:
+      immediate_actions:
+        - action: "Temporarily disable autocomplete and recommendation carousel to reduce ES query load."
+          rationale: "These features generate 70% of search queries; disabling them will relieve CPU pressure while cluster recovers."
+          estimated_effort: minutes
+        - action: "Manually reroute search traffic to eu-west-1 Elasticsearch cluster via geo-DNS override."
+          rationale: "Cross-region read replica has acceptable 45ms latency; provides immediate user experience relief."
+          estimated_effort: minutes
+      long_term_fix: >
+        Implement automatic shard reallocation throttling during node
+        recovery; add query-queue-depth alarm with auto-scaling hook
+        for ES data nodes.
+      runbook_link: "https://runbooks.internal/search-service/latency-spike-es"
+    metadata:
+      alert_id: "01901234-5678-7abc-8def-0123456789ac"
+      generated_at: "2024-06-15T14:16:45Z"
+      source:
+        system: "ai-ops-engine"
+        signal_type: trace_anomaly
+      version: "1.0.0"
+      correlation_id: "inc-2024-0615-002-search"
+
+# =============================================================================
+# Safety Guardrails
+# =============================================================================
+safety_guardrails:
+  input_sanitization:
+    - rule: strip_html_tags
+      description: Remove HTML/script tags from all text fields.
+    - rule: max_length_enforcement
+      description: Reject inputs exceeding field maxLength.
+  output_constraints:
+    - rule: no_severity_downgrade
+      description: AI MUST NOT reduce severity below what signal evidence supports.
+    - rule: recommendation_completeness
+      description: Every P0 alert MUST have >=2 immediate_actions.
+  anti_injection:
+    - rule: prompt_boundary_check
+      description: Detect and reject input containing known injection patterns.
+    - rule: delimiter_isolation
+      description: Use XML-style delimiters to isolate user input from system instructions.
