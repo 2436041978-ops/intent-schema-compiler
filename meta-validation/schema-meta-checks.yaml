@@ -1,0 +1,34 @@
+# =============================================================================
+# Schema-As-Code 自反性检查
+# =============================================================================
+# 作用：验证 Schema 协议本身是否完备，发现"该存在但不存在的规则"
+# 理念：治理系统必须能审计自己 —— 见《当治理系统开始审计自己》
+# Version : 1.0.0
+# =============================================================================
+
+schema_meta_checks:
+  - id: SMV-001
+    name: "每个意图契约应有输出 Schema 绑定"
+    check: "intent-schema.json 中的每个 intent_id 是否在 rules/output-constraints/ 中有对应定义"
+    severity: "error"
+
+  - id: SMV-002
+    name: "每个语义令牌应有 LLM 约束"
+    check: "semantic-tokens.yaml 中的每个 token 是否定义了 llm_constraints"
+    severity: "error"
+
+  - id: SMV-003
+    name: "每个模式卡片应有 fallback 策略"
+    check: "patterns/*.yaml 中的每个 pattern 是否定义了 fallback_strategy"
+    severity: "warning"
+
+  - id: SMV-004
+    name: "每个约束规则应有场景测试覆盖"
+    check: "rules/*.yaml 中的每个规则是否被 tests/scenarios/ 引用"
+    severity: "warning"
+
+  - id: SMV-005
+    name: "critical 级别意图应有 >=2 层验证深度"
+    check: "intent-schema.json 中 severity=critical 的意图，其 verification_layer 长度是否 >=2"
+    severity: "error"
+    lesson: "2026-04-08: 声明层全绿但推送失败 3 天——单层验证给出虚假安全感"
