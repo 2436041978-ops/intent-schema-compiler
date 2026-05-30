@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>intent-schema-compiler — 约束显化载体</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>intent-schema-compiler</h1>
+        <p>Schema-As-Code 控制平面载体 — 约束显化演示</p>
+    </header>
+
+    <main>
+        <!-- 对比区 -->
+        <section class="compare">
+            <h2>从「传统 Token」到「语义令牌」</h2>
+            <div class="grid">
+                <div class="card legacy">
+                    <h3>传统 Design Token</h3>
+                    <pre>--color-danger: #D32F2F;
+--spacing-md: 16px;
+--radius-sm: 4px;</pre>
+                    <div class="preview legacy-alert">
+                        <div class="box">⚠️ 严重故障</div>
+                    </div>
+                    <p class="desc">仅定义视觉属性。LLM 不知道"严重"代表什么，也无法被机器校验。</p>
+                </div>
+
+                <div class="arrow">→</div>
+
+                <div class="card schema">
+                    <h3>Schema-As-Code 语义令牌</h3>
+                    <pre>status.critical:
+  canonical_id: "ST-001"
+  immutable: true
+  visual_mapping:
+    color_token: "status.critical"
+    motion_token: "pulse.red.urgent"
+  llm_constraints:
+    - "必须包含故障定位"
+    - "禁止建议自动修复"
+  synonym_firewall:
+    prohibited: ["严重"]</pre>
+                    <div class="preview schema-alert">
+                        <div class="badge">P0</div>
+                        <span class="pulse"></span>
+                        <div class="title">系统级故障</div>
+                        <div class="cause">CPU 使用率超过阈值，导致服务响应延迟</div>
+                        <div class="meta">置信度: 0.85 | 需人工确认</div>
+                    </div>
+                    <p class="desc">色值 + 语义 + LLM 约束 + 同义词防火墙。机器可读、可编译、可拦截。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 三层协议 -->
+        <section class="layers">
+            <h2>三层协议结构</h2>
+            <div class="tabs">
+                <button class="tab active" onclick="show('semantic',this)">语义层</button>
+                <button class="tab" onclick="show('governance',this)">治理层</button>
+                <button class="tab" onclick="show('execution',this)">执行层</button>
+            </div>
+            <div class="content" id="semantic">
+                <h4>语义层 — 定义「应该有什么」</h4>
+                <pre>semantic_tokens:
+  status.critical:
+    description: "系统级故障，需立即响应"
+    llm_constraints:
+      - "生成内容必须包含明确的故障定位信息"</pre>
+            </div>
+            <div class="content hidden" id="governance">
+                <h4>治理层 — 定义「不能突破什么」</h4>
+                <pre>human_ai_boundary:
+  destructive-action:
+    ai_prohibited:
+      - "直接执行修复操作"
+      - "修改告警阈值配置"</pre>
+            </div>
+            <div class="content hidden" id="execution">
+                <h4>执行层 — 定义「怎么验证」</h4>
+                <pre>scenario_tests:
+  - case: "同义词替代"
+    mock_response: { alert_level: "严重" }
+    expected_validation: "BLOCK"</pre>
+            </div>
+        </section>
+
+        <!-- 引用闭环 -->
+        <section class="loop">
+            <h2>引用闭环</h2>
+            <div class="diagram">
+                <div class="node">意图契约<br><small>intent-schema.json</small></div>
+                <div class="arr">→</div>
+                <div class="node">语义令牌<br><small>semantic-tokens.yaml</small></div>
+                <div class="arr">→</div>
+                <div class="node">约束规则<br><small>human-ai-boundary.yaml</small></div>
+                <div class="arr">→</div>
+                <div class="node">场景测试<br><small>scenario-tests.yaml</small></div>
+                <div class="arr">→</div>
+                <div class="node">意图契约</div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>
+            <a href="https://github.com/2436041978-ops/intent-schema-compiler" target="_blank">GitHub 仓库</a> |
+            <a href="https://www.yuque.com/u222739/draddi" target="_blank">语雀文档</a>
+        </p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
