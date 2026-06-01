@@ -3,450 +3,493 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Schema-As-Code 约束校验演示</title>
+<title>约束显化：从 YAML 协议到机器安检</title>
 <style>
-:root{--color-critical:#D32F2F;--color-warning:#F9A825;--color-pass:#4CAF50;--color-block:#D32F2F;--bg-primary:#f0f2f5;--bg-card:#ffffff;--border:#e0e6ed;--text-primary:#1a1a2e;--text-secondary:#666;--radius:12px;--shadow:0 2px 8px rgba(0,0,0,0.08);}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.5;font-size:14px;}
-.container{max-width:1440px;margin:0 auto;padding:16px;}
-header{text-align:center;margin-bottom:20px;padding:16px;background:var(--bg-card);border-radius:var(--radius);box-shadow:var(--shadow);}
-header h1{font-size:20px;margin-bottom:6px;font-weight:600;}
-header p{color:var(--text-secondary);font-size:13px;}
-header code{background:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:12px;color:var(--color-critical);}
-.main{display:grid;grid-template-columns:380px 1fr 380px;gap:16px;margin-bottom:20px;align-items:start;}
-.control-panel,.validator-engine,.render-result{background:var(--bg-card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;border:none;}
-.control-panel h2,.validator-engine h2,.render-result h2{font-size:15px;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #f0f0f0;font-weight:600;display:flex;align-items:center;gap:6px;}
-#llm-selector{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;font-size:13px;cursor:pointer;background:#fafafa;}
-.source-section{margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
-.source-header{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8f9fa;cursor:pointer;user-select:none;font-size:12px;font-weight:600;transition:background 0.2s;}
-.source-header:hover{background:#e3f2fd;}
-.source-header.active{background:#e3f2fd;color:#1565c0;}
-.source-header h3{font-size:12px;margin:0;display:flex;align-items:center;gap:6px;}
-.badge{font-size:10px;padding:2px 6px;border-radius:10px;background:#1565c0;color:white;font-weight:bold;}
-.badge.governance{background:#c62828;}
-.badge.validation{background:#2e7d32;}
-.source-body{display:none;padding:8px;background:#fff;}
-.source-body.open{display:block;}
-.file-path{font-size:10px;color:#888;padding:4px 8px;background:#fafafa;border-bottom:1px dashed #eee;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.reference-chain{font-size:10px;padding:4px 8px;background:#fff8e1;color:#666;border-top:1px solid #eee;}
-.reference-chain code{background:transparent;color:#e65100;font-weight:bold;font-size:10px;}
-pre{background:#1e1e2e;color:#a6e22e;padding:10px;border-radius:6px;font-size:11px;line-height:1.4;overflow-x:auto;max-height:110px;overflow-y:auto;margin:0;font-family:"SF Mono",Monaco,monospace;}
-pre::-webkit-scrollbar{width:6px;height:6px;}
-pre::-webkit-scrollbar-thumb{background:#444;border-radius:3px;}
-.schema-compiled{margin-bottom:12px;}
-.schema-compiled h3{font-size:13px;color:var(--text-secondary);margin-bottom:6px;}
-.tier-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
-.tier-item{display:flex;align-items:flex-start;padding:10px;border-radius:8px;border-left:3px solid;background:#fafafa;font-size:13px;}
-.tier-item.pass{border-left-color:var(--color-pass);background:#f1f8e9;}
-.tier-item.block{border-left-color:var(--color-block);background:#ffebee;}
-.tier-item.skip{border-left-color:#999;opacity:0.5;background:#f5f5f5;}
-.tier-icon{font-size:16px;margin-right:8px;width:24px;text-align:center;flex-shrink:0;}
-.tier-info h4{font-size:13px;margin-bottom:2px;font-weight:600;}
-.tier-info p{font-size:11px;color:var(--text-secondary);line-height:1.4;}
-.verdict{text-align:center;padding:14px;border-radius:8px;font-weight:bold;font-size:15px;margin-top:8px;}
-.verdict.pass{background:#e8f5e9;color:var(--color-pass);border:1px solid var(--color-pass);}
-.verdict.block{background:#ffebee;color:var(--color-block);border:1px solid var(--color-block);}
-.render-result{position:relative;min-height:400px;}
-.alert-card{border-radius:10px;padding:16px;margin-top:8px;transition:all 0.3s ease;}
-.alert-card.critical{background:#ffebee;border:1px solid var(--color-critical);box-shadow:0 0 16px rgba(211,47,47,0.15);}
-.alert-card.warning{background:#fff8e1;border:1px solid var(--color-warning);}
-.alert-card.normal{background:#e8f5e9;border:1px solid var(--color-pass);}
-.alert-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
-.alert-badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:bold;color:white;}
-.alert-badge.p0{background:var(--color-critical);}.alert-badge.p1{background:#FF9800;}.alert-badge.severe{background:var(--color-warning);color:#333;}
-.pulse{width:10px;height:10px;border-radius:50%;background:var(--color-critical);animation:pulse 2s infinite;display:inline-block;}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(211,47,47,0.7);}70%{box-shadow:0 0 0 8px rgba(211,47,47,0);}100%{box-shadow:0 0 0 0 rgba(211,47,47,0);}}
-.alert-title{font-size:16px;font-weight:bold;margin-bottom:6px;}
-.alert-cause{font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;}
-.alert-meta{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-secondary);}
-.confidence-bar{width:100%;height:4px;background:#e0e0e0;border-radius:2px;margin-top:6px;overflow:hidden;}
-.confidence-fill{height:100%;border-radius:2px;transition:width 0.3s ease;}
-.confidence-fill.high{background:var(--color-pass);}.confidence-fill.medium{background:var(--color-warning);}.confidence-fill.low{background:var(--color-critical);}
-.block-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.92);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px);}
-.block-overlay.hidden{display:none;}
-.block-modal{text-align:center;padding:40px;max-width:420px;background:white;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:2px solid var(--color-block);}
-.block-modal h3{color:var(--color-block);font-size:22px;margin-bottom:16px;}
-.block-modal p{font-size:14px;color:var(--text-secondary);margin-bottom:24px;line-height:1.6;text-align:left;}
-.block-modal button{background:var(--color-block);color:white;border:none;padding:10px 32px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;transition:background 0.2s;}
-.block-modal button:hover{background:#b71c1c;}
-footer{text-align:center;padding:16px;color:var(--text-secondary);font-size:12px;}
-footer a{color:#1565c0;text-decoration:none;}
-@media(max-width:1200px){.main{grid-template-columns:320px 1fr 320px;}}
-@media(max-width:1024px){.main{grid-template-columns:1fr;gap:12px;}.render-result{min-height:300px;}}
+:root{
+  --bg:#f5f7fa;
+  --card:#fff;
+  --border:#e0e6ed;
+  --text:#1a1a2e;
+  --text2:#666;
+  --red:#D32F2F;
+  --orange:#F9A825;
+  --green:#4CAF50;
+  --blue:#1976D2;
+  --radius:8px;
+  --mono: ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+.container{max-width:1600px;margin:0 auto;padding:16px}
+header{text-align:center;margin-bottom:16px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius)}
+header h1{font-size:20px;margin-bottom:6px}
+header p{font-size:13px;color:var(--text2)}
+header code{background:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:12px;color:var(--red);font-family:var(--mono)}
+
+/* 场景选择 */
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.toolbar label{font-size:13px;color:var(--text2)}
+#scenario{width:320px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:#fff;cursor:pointer}
+
+/* 五栏网格 */
+.pipeline{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+@media(max-width:1200px){.pipeline{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){.pipeline{grid-template-columns:1fr}}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;overflow:hidden}
+.panel-header{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:6px}
+.panel-body{padding:12px;flex:1;overflow:auto;font-size:12px;font-family:var(--mono);line-height:1.5}
+.panel-body pre{margin:0;white-space:pre-wrap;word-break:break-all}
+
+/* YAML 高亮模拟 */
+.yaml .key{color:var(--blue);font-weight:600}
+.yaml .str{color:var(--red)}
+.yaml .num{color:var(--orange)}
+.yaml .comment{color:#999;font-style:italic}
+.yaml .tag{color:var(--green);font-weight:600}
+
+/* JSON 高亮 */
+.json .key{color:var(--blue)}
+.json .str{color:var(--red)}
+.json .num{color:var(--orange)}
+.json .bool{color:var(--green)}
+
+/* 推演 */
+.tier-item{display:flex;align-items:flex-start;padding:8px;border-radius:6px;border-left:3px solid #ddd;margin-bottom:6px;background:#fafafa}
+.tier-item.pass{border-left-color:var(--green)}
+.tier-item.block{border-left-color:var(--red)}
+.tier-item.warn{border-left-color:var(--orange)}
+.tier-item.skip{opacity:.5}
+.tier-icon{width:20px;text-align:center;margin-right:6px;font-size:14px}
+.tier-name{font-size:12px;font-weight:600}
+.tier-desc{font-size:11px;color:var(--text2);margin-top:2px}
+
+.verdict{text-align:center;padding:12px;border-radius:var(--radius);font-weight:700;font-size:14px;margin-top:8px}
+.verdict.pass{background:#e8f5e9;color:var(--green);border:2px solid var(--green)}
+.verdict.block{background:#ffebee;color:var(--red);border:2px solid var(--red)}
+
+/* 告警卡片 */
+.alert-card{border-radius:var(--radius);padding:16px;margin-top:8px;transition:.3s}
+.alert-card.critical{background:#ffebee;border:2px solid var(--red);box-shadow:0 0 16px rgba(211,47,47,.15)}
+.alert-card.warning{background:#fff8e1;border:2px solid var(--orange)}
+.alert-card.normal{background:#e8f5e9;border:2px solid var(--green)}
+.alert-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;color:#fff}
+.badge.p0{background:var(--red)}
+.badge.p1{background:var(--orange)}
+.badge.severe{background:var(--orange);color:#333}
+.pulse{width:10px;height:10px;border-radius:50%;background:var(--red);animation:pulse 2s infinite;display:inline-block}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(211,47,47,.7)}70%{box-shadow:0 0 0 8px rgba(211,47,47,0)}100%{box-shadow:0 0 0 0 rgba(211,47,47,0)}}
+.title{font-size:16px;font-weight:700;margin-bottom:6px}
+.cause{font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.5}
+.meta{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:6px}
+.cbar{width:100%;height:5px;background:#e0e0e0;border-radius:3px;overflow:hidden}
+.cfill{height:100%;border-radius:3px}
+
+/* 拦截遮罩 */
+.overlay{position:absolute;inset:0;background:rgba(255,255,255,.96);display:flex;align-items:center;justify-content:center;border-radius:var(--radius);z-index:10}
+.overlay.hidden{display:none}
+.omodal{text-align:center;padding:24px;max-width:280px}
+.omodal h3{color:var(--red);font-size:18px;margin-bottom:10px}
+.omodal p{font-size:12px;color:var(--text2);margin-bottom:16px;line-height:1.6}
+.btn{background:var(--red);color:#fff;border:none;padding:8px 20px;border-radius:var(--radius);cursor:pointer;font-size:13px}
+.btn:hover{background:#b71c1c}
+
+.render-wrap{position:relative}
+
+/* 箭头 */
+.flow-arrow{text-align:center;padding:6px 0;font-size:20px;color:var(--text2)}
+@media(min-width:1201px){
+  .flow-arrow{display:none} /* 桌面端用网格间隙，不需要箭头 */
+}
+
+footer{text-align:center;padding:16px;color:var(--text2);font-size:12px}
+footer a{color:var(--red);text-decoration:none}
 </style>
 </head>
 <body>
 <div class="container">
-<<header>
-<h1>Schema-As-Code 约束校验演示</h1>
-<p>意图协议 → 编译产物 → 机器校验</p>
-</header>
+  <header>
+    <h1>🔒 约束显化：从 YAML 协议到机器安检</h1>
+    <p>展示 <code>intent-schema-compiler</code> 中意图协议如何被编译为 JSON Schema，并执行四层推演</p>
+  </header>
 
-<div class="main">
-<<aside class="control-panel">
-<h2>选择 LLM 输出场景</h2>
-<select id="llm-selector">
-<option value="valid">✅ 合规输出（命中语义令牌）</option>
-<option value="synonym">❌ 语义漂移（"严重"替代 P0）</option>
-<option value="length">❌ 信息不足（根因 &lt; 10 字符）</option>
-<option value="confidence">❌ 数值越界（置信度 1.5）</option>
-<option value="safety">❌ 安全偏差（建议自动执行）</option>
-<option value="multi">❌ 复合偏差（3 条规则）</option>
-</select>
+  <div class="toolbar">
+    <label>选择 LLM 输出场景：</label>
+    <select id="scenario">
+      <option value="valid">✅ 合法输出（P0 + 完整根因）</option>
+      <option value="synonym">❌ 同义词漂移（"严重"替代 P0）</option>
+      <option value="length">❌ 文案过短（根因 < 10 字符）</option>
+      <option value="confidence">❌ 置信度越界（1.5 > 1.0）</option>
+      <option value="safety">❌ 安全违规（建议自动修复）</option>
+      <option value="multi">❌ 复合违规（3 条红线）</option>
+    </select>
+  </div>
 
-<div class="source-section">
-<div class="source-header active" onclick="toggleAccordion(this)">
-<h3>📄 YAML 协议源文件</h3>
-<span id="yaml-badge" class="badge">语义层</span>
-</div>
-<div class="source-body open">
-<div class="file-path" id="yaml-path">intent-schema-compiler/语义层/semantic-tokens.yaml</div>
-<pre id="yaml-display"></pre>
-<div class="reference-chain"><span>引用链：</span><code id="yaml-ref">intent-schema.json → semantic-tokens.yaml</code></div>
-</div>
-</div>
+  <div class="pipeline">
+    <!-- 栏1：YAML 协议源文件 -->
+    <div class="panel">
+      <div class="panel-header">📄 YAML 协议源文件</div>
+      <div class="panel-body yaml" id="yaml-panel"></div>
+    </div>
 
-<div class="source-section">
-<div class="source-header" onclick="toggleAccordion(this)">
-<h3>🔧 编译产物：JSON Schema</h3>
-</div>
-<div class="source-body">
-<pre id="schema-display"></pre>
-</div>
-</div>
+    <!-- 栏2：编译产物 -->
+    <div class="panel">
+      <div class="panel-header">⚙️ 编译产物（JSON Schema）</div>
+      <div class="panel-body json" id="schema-panel"></div>
+    </div>
 
-<div class="source-section">
-<div class="source-header" onclick="toggleAccordion(this)">
-<h3>🤖 LLM 原始输出</h3>
-</div>
-<div class="source-body">
-<pre id="json-display"></pre>
-</div>
-</div>
-</aside>
+    <!-- 栏3：LLM 原始输出 -->
+    <div class="panel">
+      <div class="panel-header">🤖 LLM 原始输出</div>
+      <div class="panel-body json" id="json-panel"></div>
+    </div>
 
-<section class="validator-engine">
-<h2>⚡ 四层推演校验</h2>
-<div id="tier-results" class="tier-list"></div>
-<div id="final-verdict" class="verdict"></div>
-</section>
+    <!-- 栏4：四层推演 -->
+    <div class="panel">
+      <div class="panel-header">🛡️ Four-Tier Validator</div>
+      <div class="panel-body" id="tier-panel"></div>
+      <div id="verdict-panel" style="padding:0 12px 12px"></div>
+    </div>
 
-<section class="render-result">
-<h2>🖥️ 界面渲染</h2>
-<div id="alert-card" class="alert-card"></div>
-<div id="block-overlay" class="block-overlay hidden">
-<div class="block-modal">
-<h3>🚫 约束协议拦截</h3>
-<p id="block-reason"></p>
-<button onclick="app.reset()">重置演示</button>
-</div>
-</div>
-</section>
-</div>
+    <!-- 栏5：界面渲染 -->
+    <div class="panel">
+      <div class="panel-header">🖥️ 用户界面渲染</div>
+      <div class="panel-body render-wrap">
+        <div id="alert-card"></div>
+        <div id="block-overlay" class="overlay hidden">
+          <div class="omodal">
+            <h3>🚫 意图协议拦截</h3>
+            <p id="block-reason"></p>
+            <button class="btn" onclick="reset()">重置演示</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<<footer>
-<p>控制平面：<a href="https://github.com/2436041978-ops/intent-schema-compiler" target="_blank">intent-schema-compiler</a> | 架构仓库：<a href="https://github.com/2436041978-ops/schema-as-code" target="_blank">schema-as-code</a></p>
-</footer>
+  <footer>
+    <p>
+      控制平面：<a href="https://github.com/2436041978-ops/intent-schema-compiler" target="_blank">intent-schema-compiler</a> |
+      在线演示：本页 |
+      完整架构：<a href="https://github.com/2436041978-ops/schema-as-code" target="_blank">schema-as-code</a>
+    </p>
+  </footer>
 </div>
 
 <script>
-function toggleAccordion(header){
-  header.classList.toggle('active');
-  header.nextElementSibling.classList.toggle('open');
-}
+const yamlSources = {
+  valid: `semantic_tokens:
+  <span class="tag">status.critical</span>:
+    canonical_id: "ST-001"
+    immutable: <span class="bool">true</span>
+    llm_constraints:
+      - "生成内容必须包含故障定位"
+      - "<span class="str">禁止提供未经验证的修复建议</span>"
+    synonym_firewall:
+      prohibited:
+        - term: "<span class="str">严重</span>"
+          standard_token: "<span class="tag">critical</span>"
 
-const app={
-  schema:{
-    type:"object",
-    required:["alert_level","root_cause","confidence_score"],
-    properties:{
-      alert_level:{type:"string",enum:["P0","P1","P2","P3"]},
-      root_cause:{type:"string",minLength:10,maxLength:200},
-      confidence_score:{type:"number",minimum:0,maximum:1},
-      remediation:{
-        type:"array",
-        items:{
-          type:"object",
-          properties:{
-            action_type:{enum:["manual","escalation"]}
-          }
-        }
-      }
-    }
-  },
+response_schema:
+  required: [<span class="str">alert_level</span>, <span class="str">root_cause</span>, <span class="str">confidence_score</span>]
+  properties:
+    alert_level:
+      enum: [<span class="str">"P0"</span>, <span class="str">"P1"</span>, <span class="str">"P2"</span>, <span class="str">"P3"</span>]
+    root_cause:
+      minLength: <span class="num">10</span>
+    confidence_score:
+      maximum: <span class="num">1.0</span>
 
-  mockOutputs:{
-    valid:{
-      label:"✅ 合规输出",
-      yamlLayer:"语义层",
-      yamlFile:"semantic-tokens.yaml",
-      yamlRef:"intent-schema.json → semantic-tokens.yaml",
-      yamlSource:"semantic_tokens:\n  status.critical:\n    canonical_id: \"ST-001\"\n    immutable: true\n    description: \"系统级故障，需立即响应\"\n    visual_mapping:\n      color_token: \"status.critical\"\n      motion_token: \"pulse.red.urgent\"\n    llm_constraints:\n      - \"生成内容必须包含明确的故障定位信息\"\n      - \"禁止提供未经验证的修复建议\"\n      - \"必须附带人工升级路径\"",
-      data:{
-        alert_level:"P0",
-        root_cause:"CPU 使用率超过阈值，导致服务响应延迟",
-        confidence_score:0.85,
-        remediation:[{action_type:"manual",description:"检查内存占用进程"}]
-      },
-      expected:"PASS"
-    },
-    synonym:{
-      label:"❌ 语义漂移",
-      yamlLayer:"约束层",
-      yamlFile:"synonym-mapping.yaml",
-      yamlRef:"semantic-tokens.yaml → synonym-mapping.yaml",
-      yamlSource:"synonym_mapping:\n  - term: \"严重\"\n    standard_token: \"critical\"\n    allowed_contexts: [\"AW-001\", \"AW-002\"]\n    # 当前意图 AW-003 不在允许列表中\n    # 触发：语义推演 BLOCK",
-      data:{
-        alert_level:"严重",
-        root_cause:"CPU 使用率超过阈值，导致服务响应延迟",
-        confidence_score:0.85
-      },
-      expected:"BLOCK",
-      errors:[{
-        tier:"semantic",
-        rule:"SEM-001",
-        message:"Value \"严重\" is not defined in enum [\"P0\",\"P1\",\"P2\",\"P3\"]",
-        ref:"#/properties/alert_level/Enum"
-      }]
-    },
-    length:{
-      label:"❌ 信息不足",
-      yamlLayer:"约束层",
-      yamlFile:"response-schema.yaml",
-      yamlRef:"intent-schema.json → response-schema.yaml",
-      yamlSource:"response_schema:\n  required_fields:\n    - field: \"root_cause\"\n      type: \"string\"\n      min_length: 10        # ← 当前 3 字符，未达标\n      max_length: 200",
-      data:{
-        alert_level:"P0",
-        root_cause:"CPU",
-        confidence_score:0.85
-      },
-      expected:"BLOCK",
-      errors:[{
-        tier:"syntax",
-        rule:"SYN-002",
-        message:"String 'CPU' is less than minimum length of 10",
-        ref:"#/properties/root_cause/MinimumLength"
-      }]
-    },
-    confidence:{
-      label:"❌ 数值越界",
-      yamlLayer:"约束层",
-      yamlFile:"response-schema.yaml",
-      yamlRef:"intent-schema.json → response-schema.yaml",
-      yamlSource:"response_schema:\n  required_fields:\n    - field: \"confidence_score\"\n      type: \"number\"\n      minimum: 0.0\n      maximum: 1.0          # ← 当前 1.5，超出上限",
-      data:{
-        alert_level:"P0",
-        root_cause:"CPU 使用率超过阈值，导致服务响应延迟",
-        confidence_score:1.5
-      },
-      expected:"BLOCK",
-      errors:[{
-        tier:"syntax",
-        rule:"SYN-003",
-        message:"Float 1.5 exceeds maximum value of 1",
-        ref:"#/properties/confidence_score/Maximum"
-      }]
-    },
-    safety:{
-      label:"❌ 安全偏差",
-      yamlLayer:"约束层",
-      yamlFile:"human-ai-boundary.yaml",
-      yamlRef:"intent-schema.json → human-ai-boundary.yaml",
-      yamlSource:"human_ai_boundary:\n  destructive-action:\n    ai_prohibited:\n      - \"直接执行修复操作\"\n      - \"修改告警阈值配置\"\n      - \"关闭或忽略告警\"\n    # action_type: \"automated\" 命中上述禁止项",
-      data:{
-        alert_level:"P0",
-        root_cause:"CPU 使用率超过阈值，导致服务响应延迟",
-        confidence_score:0.85,
-        remediation:[{action_type:"automated",description:"自动修复"}]
-      },
-      expected:"BLOCK",
-      errors:[{
-        tier:"safety",
-        rule:"SAF-001",
-        message:"命中安全禁止模式: action_type='automated'",
-        ref:"rules/safety/destructive.yaml"
-      }]
-    },
-    multi:{
-      label:"❌ 复合偏差",
-      yamlLayer:"验证层",
-      yamlFile:"scenario-tests.yaml",
-      yamlRef:"human-ai-boundary.yaml → scenario-tests.yaml",
-      yamlSource:"scenario_tests:\n  - case: \"复合偏差\"\n    mock_response:\n      alert_level: \"严重\"      # 语义层违规\n      root_cause: \"CPU\"        # 约束层违规\n      confidence_score: 1.5    # 约束层违规\n    expected_validation: \"BLOCK\"",
-      data:{
-        alert_level:"严重",
-        root_cause:"CPU",
-        confidence_score:1.5
-      },
-      expected:"BLOCK",
-      errors:[
-        {tier:"semantic",rule:"SEM-001",message:"Value \"严重\" is not defined in enum",ref:"#/properties/alert_level/Enum"},
-        {tier:"syntax",rule:"SYN-002",message:"String 'CPU' is less than minimum length of 10",ref:"#/properties/root_cause/MinimumLength"},
-        {tier:"syntax",rule:"SYN-003",message:"Float 1.5 exceeds maximum value of 1",ref:"#/properties/confidence_score/Maximum"}
-      ]
-    }
-  },
+human_ai_boundary:
+  ai_prohibited:
+    - "<span class="str">直接执行修复操作</span>"
+    - "修改告警阈值配置"`,
 
-  init(){
-    this.selector=document.getElementById('llm-selector');
-    this.yamlDisplay=document.getElementById('yaml-display');
-    this.yamlBadge=document.getElementById('yaml-badge');
-    this.yamlPath=document.getElementById('yaml-path');
-    this.yamlRef=document.getElementById('yaml-ref');
-    this.schemaDisplay=document.getElementById('schema-display');
-    this.jsonDisplay=document.getElementById('json-display');
-    this.tierResults=document.getElementById('tier-results');
-    this.finalVerdict=document.getElementById('final-verdict');
-    this.alertCard=document.getElementById('alert-card');
-    this.blockOverlay=document.getElementById('block-overlay');
-    this.blockReason=document.getElementById('block-reason');
+  synonym: `semantic_tokens:
+  <span class="tag">status.critical</span>:
+    canonical_id: "ST-001"
+    immutable: <span class="bool">true</span>
+    llm_constraints:
+      - "生成内容必须包含故障定位"
+      - "<span class="str">禁止提供未经验证的修复建议</span>"
+    synonym_firewall:
+      prohibited:
+        - term: "<span class="str" style="background:#ffebee">严重</span>"  <span class="comment">← 命中此项</span>
+          standard_token: "<span class="tag">critical</span>"
 
-    this.schemaDisplay.textContent=JSON.stringify(this.schema,null,2);
-    this.selector.addEventListener('change',e=>this.run(e.target.value));
-    this.run('valid');
-  },
+response_schema:
+  required: [<span class="str">alert_level</span>, <span class="str">root_cause</span>, <span class="str">confidence_score</span>]
+  properties:
+    alert_level:
+      enum: [<span class="str">"P0"</span>, <span class="str">"P1"</span>, <span class="str">"P2"</span>, <span class="str">"P3"</span>]  <span class="comment">← "严重" 不在白名单</span>
+    root_cause:
+      minLength: <span class="num">10</span>
+    confidence_score:
+      maximum: <span class="num">1.0</span>
 
-  run(key){
-    const scenario=this.mockOutputs[key];
-    const data=scenario.data;
+human_ai_boundary:
+  ai_prohibited:
+    - "<span class="str">直接执行修复操作</span>"
+    - "修改告警阈值配置"`,
 
-    this.yamlDisplay.textContent=scenario.yamlSource;
-    this.yamlBadge.textContent=scenario.yamlLayer;
-    this.yamlBadge.className='badge '+(scenario.yamlLayer==='语义层'?'':scenario.yamlLayer==='约束层'?'governance':'validation');
-    this.yamlPath.textContent='intent-schema-compiler/'+(scenario.yamlLayer==='语义层'?'语义层':scenario.yamlLayer==='约束层'?'约束层':'验证层')+'/'+scenario.yamlFile;
-    this.yamlRef.textContent=scenario.yamlRef;
+  length: `semantic_tokens:
+  <span class="tag">status.critical</span>:
+    canonical_id: "ST-001"
+    immutable: <span class="bool">true</span>
+    llm_constraints:
+      - "生成内容必须包含故障定位"
+      - "<span class="str">禁止提供未经验证的修复建议</span>"
 
-    this.jsonDisplay.textContent=JSON.stringify(data,null,2);
+response_schema:
+  required: [<span class="str">alert_level</span>, <span class="str">root_cause</span>, <span class="str">confidence_score</span>]
+  properties:
+    alert_level:
+      enum: [<span class="str">"P0"</span>, <span class="str">"P1"</span>, <span class="str">"P2"</span>, <span class="str">"P3"</span>]
+    root_cause:
+      minLength: <span class="num">10</span>  <span class="comment">← "CPU" 长度不足</span>
+    confidence_score:
+      maximum: <span class="num">1.0</span>
 
-    const result=this.validate(data,scenario.errors||[]);
-    this.renderTiers(result);
-    this.renderVerdict(result.passed);
+human_ai_boundary:
+  ai_prohibited:
+    - "<span class="str">直接执行修复操作</span>"
+    - "修改告警阈值配置"`,
 
-    if(result.passed){
-      this.renderCard(data);
-      this.hideBlock();
-    }else{
-      this.renderCard(data,true);
-      this.showBlock(result.errors[0]);
-    }
-  },
+  confidence: `semantic_tokens:
+  <span class="tag">status.critical</span>:
+    canonical_id: "ST-001"
+    immutable: <span class="bool">true</span>
+    llm_constraints:
+      - "生成内容必须包含故障定位"
+      - "<span class="str">禁止提供未经验证的修复建议</span>"
 
-  validate(data,expectedErrors){
-    const errors=[];
-    let passed=true;
+response_schema:
+  required: [<span class="str">alert_level</span>, <span class="str">root_cause</span>, <span class="str">confidence_score</span>]
+  properties:
+    alert_level:
+      enum: [<span class="str">"P0"</span>, <span class="str">"P1"</span>, <span class="str">"P2"</span>, <span class="str">"P3"</span>]
+    root_cause:
+      minLength: <span class="num">10</span>
+    confidence_score:
+      maximum: <span class="num" style="background:#ffebee">1.0</span>  <span class="comment">← 1.5 越界</span>
 
-    // T1: 语法推演
-    const t1Errors=[];
-    if(data.root_cause && data.root_cause.length < 10){
-      t1Errors.push('root_cause length '+data.root_cause.length+' < 10');
-    }
-    if(data.confidence_score!==undefined && (data.confidence_score < 0 || data.confidence_score > 1)){
-      t1Errors.push('confidence_score '+data.confidence_score+' out of range [0,1]');
-    }
-    if(t1Errors.length>0){
-      errors.push({tier:"syntax",name:"语法推演",status:"block",detail:t1Errors.join("; ")});
-      passed=false;
-    }else{
-      errors.push({tier:"syntax",name:"语法推演",status:"pass",detail:"结构完整，字段类型正确"});
-    }
+human_ai_boundary:
+  ai_prohibited:
+    - "<span class="str">直接执行修复操作</span>"
+    - "修改告警阈值配置"`,
 
-    // T2: 语义推演（短路）
-    if(passed){
-      const t2Errors=[];
-      if(!["P0","P1","P2","P3"].includes(data.alert_level)){
-        t2Errors.push('alert_level "'+data.alert_level+'" 不在语义令牌白名单中');
-      }
-      if(t2Errors.length>0){
-        errors.push({tier:"semantic",name:"语义推演",status:"block",detail:t2Errors.join("; ")});
-        passed=false;
-      }else{
-        errors.push({tier:"semantic",name:"语义推演",status:"pass",detail:"语义令牌引用正确"});
-      }
-    }else{
-      errors.push({tier:"semantic",name:"语义推演",status:"skip",detail:"语法层阻断，短路终止"});
-    }
+  safety: `semantic_tokens:
+  <span class="tag">status.critical</span>:
+    canonical_id: "ST-001"
+    immutable: <span class="bool">true</span>
+    llm_constraints:
+      - "生成内容必须包含故障定位"
+      - "<span class="str">禁止提供未经验证的修复建议</span>"
 
-    // T3: 安全推演（短路）
-    if(passed){
-      const t3Errors=[];
-      if(data.remediation && data.remediation.some(r=>r.action_type==="automated")){
-        t3Errors.push("命中安全禁止模式: action_type='automated'");
-      }
-      if(t3Errors.length>0){
-        errors.push({tier:"safety",name:"安全推演",status:"block",detail:t3Errors.join("; ")});
-        passed=false;
-      }else{
-        errors.push({tier:"safety",name:"安全推演",status:"pass",detail:"无禁止模式命中"});
-      }
-    }else{
-      errors.push({tier:"safety",name:"安全推演",status:"skip",detail:"前层阻断，短路终止"});
-    }
+response_schema:
+  required: [<span class="str">alert_level</span>, <span class="str">root_cause</span>, <span class="str">confidence_score</span>]
+  properties:
+    alert_level:
+      enum: [<span class="str">"P0"</span>, <span class="str">"P1"</span>, <span class="str">"P2"</span>, <span class="str">"P3"</span>]
+    root_cause:
+      minLength: <span class="num">10</span>
+    confidence_score:
+      maximum: <span class="num">1.0</span>
 
-    // T4: 美感推演（不阻断）
-    const t4Errors=[];
-    if(data.root_cause && data.root_cause.length>150){
-      t4Errors.push("文案长度超过 150 字符，建议精简");
-    }
-    errors.push({
-      tier:"aesthetic",
-      name:"美感推演",
-      status:t4Errors.length>0?"warn":"pass",
-      detail:t4Errors.length>0?t4Errors.join("; "):"信息密度与可读性达标"
-    });
+human_ai_boundary:
+  ai_prohibited:
+    - "<span class="str" style="background:#ffebee">直接执行修复操作</span>"  <span class="comment">← 命中此项</span>
+    - "修改告警阈值配置"`,
 
-    return{passed,errors};
-  },
+  multi: `semantic_tokens:
+  <span class="tag">status.critical</span>:
+    canonical_id: "ST-001"
+    immutable: <span class="bool">true</span>
+    llm_constraints:
+      - "生成内容必须包含故障定位"
+      - "<span class="str">禁止提供未经验证的修复建议</span>"
+    synonym_firewall:
+      prohibited:
+        - term: "<span class="str" style="background:#ffebee">严重</span>"  <span class="comment">← 命中</span>
+          standard_token: "<span class="tag">critical</span>"
 
-  renderTiers(result){
-    const tierNames={syntax:{icon:"📐"},semantic:{icon:"🔤"},safety:{icon:"🛡️"},aesthetic:{icon:"✨"}};
-    this.tierResults.innerHTML=result.errors.map(err=>{
-      const statusClass=err.status==="pass"?"pass":err.status==="block"?"block":"skip";
-      const icon=err.status==="pass"?"✅":err.status==="block"?"❌":"⏸️";
-      return '<div class="tier-item '+statusClass+'"><div class="tier-icon">'+icon+'</div><div class="tier-info"><h4>'+tierNames[err.tier].icon+' '+err.name+' ['+err.status.toUpperCase()+']</h4><p>'+err.detail+'</p></div></div>';
-    }).join('');
-  },
+response_schema:
+  required: [<span class="str">alert_level</span>, <span class="str">root_cause</span>, <span class="str">confidence_score</span>]
+  properties:
+    alert_level:
+      enum: [<span class="str">"P0"</span>, <span class="str">"P1"</span>, <span class="str">"P2"</span>, <span class="str">"P3"</span>]  <span class="comment">← "严重" 越界</span>
+    root_cause:
+      minLength: <span class="num" style="background:#ffebee">10</span>  <span class="comment">← "CPU" 不足</span>
+    confidence_score:
+      maximum: <span class="num" style="background:#ffebee">1.0</span>  <span class="comment">← 1.5 越界</span>
 
-  renderVerdict(passed){
-    this.finalVerdict.className='verdict '+(passed?'pass':'block');
-    this.finalVerdict.innerHTML=passed?'✅ PASS — 四层推演通过，允许渲染':'❌ BLOCK — 推演失败，强制拦截并升级人工';
-  },
+human_ai_boundary:
+  ai_prohibited:
+    - "<span class="str">直接执行修复操作</span>"
+    - "修改告警阈值配置"`
+};
 
-  renderCard(data,isViolated){
-    const level=data.alert_level;
-    const isValidLevel=["P0","P1","P2","P3"].includes(level);
-    const cardClass=isValidLevel && level==="P0"?"critical":isValidLevel?"warning":"normal";
-    const badgeClass=isValidLevel?level.toLowerCase():"severe";
-    const badgeText=isValidLevel?level:"UNKNOWN";
-
-    let remediationHtml='';
-    if(data.remediation && data.remediation.length>0){
-      const actions=data.remediation.map(r=>'<<span style="color:'+(r.action_type==="automated"?"var(--color-block)":"var(--color-pass)")+'">'+(r.action_type==="automated"?"⚠️ ":"✓ ")+r.description+'</span>').join('<br>');
-      remediationHtml='<div style="margin-top:12px;font-size:12px;padding:8px;background:#f5f5f5;border-radius:4px;">'+actions+'</div>';
-    }
-
-    const confidencePercent=Math.min(Math.max((data.confidence_score||0)*100,0),100);
-    const confidenceClass=confidencePercent>80?"high":confidencePercent>50?"medium":"low";
-
-    this.alertCard.className='alert-card '+cardClass;
-    this.alertCard.innerHTML='<div class="alert-header"><span class="alert-badge '+badgeClass+'">'+badgeText+'</span>'+(isValidLevel && level==="P0"?'<span class="pulse"></span>':'')+'</div><div class="alert-title">系统告警</div><div class="alert-cause">'+(data.root_cause||'未提供根因')+'</div><div class="alert-meta"><span>置信度: '+(data.confidence_score!==undefined?data.confidence_score:'N/A')+'</span><span>'+(isViolated?'⚠️ 存在违规':'✓ 合规')+'</span></div><div class="confidence-bar"><div class="confidence-fill '+confidenceClass+'" style="width:'+confidencePercent+'%"></div></div>'+remediationHtml;
-  },
-
-  showBlock(firstError){
-    this.blockOverlay.classList.remove('hidden');
-    this.blockReason.innerHTML='<strong>违规层级：</strong>Four-Tier '+firstError.tier.toUpperCase()+'<<br><strong>规则编号：</strong>'+(firstError.rule||'N/A')+'<<br><strong>拦截原因：</strong>'+(firstError.detail||firstError.message||'命中意图协议不可变边界')+'<<br><br><small>阻断优于修正：不触发 LLM 自动重试，直接升级人工</small>';
-  },
-
-  hideBlock(){
-    this.blockOverlay.classList.add('hidden');
-  },
-
-  reset(){
-    this.selector.value='valid';
-    this.run('valid');
+const schema = {
+  type: "object",
+  required: ["alert_level","root_cause","confidence_score"],
+  properties: {
+    alert_level:{type:"string",enum:["P0","P1","P2","P3"]},
+    root_cause:{type:"string",minLength:10,maxLength:200},
+    confidence_score:{type:"number",minimum:0,maximum:1},
+    remediation:{type:"array",items:{type:"object",properties:{action_type:{enum:["manual","escalation"]}}}}
   }
 };
 
-document.addEventListener('DOMContentLoaded',()=>app.init());
+const scenarios = {
+  valid: {
+    data:{alert_level:"P0",root_cause:"CPU 使用率超过阈值，导致服务响应延迟",confidence_score:0.85,remediation:[{action_type:"manual",description:"检查内存占用进程"}]},
+    pass:true
+  },
+  synonym: {
+    data:{alert_level:"严重",root_cause:"CPU 使用率超过阈值，导致服务响应延迟",confidence_score:0.85},
+    pass:false,
+    errors:[{tier:"semantic",name:"语义推演",msg:'Value "严重" is not defined in enum ["P0","P1","P2","P3"]',ref:"#/properties/alert_level/Enum"}]
+  },
+  length: {
+    data:{alert_level:"P0",root_cause:"CPU",confidence_score:0.85},
+    pass:false,
+    errors:[{tier:"syntax",name:"语法推演",msg:"String 'CPU' is less than minimum length of 10",ref:"#/properties/root_cause/MinimumLength"}]
+  },
+  confidence: {
+    data:{alert_level:"P0",root_cause:"CPU 使用率超过阈值，导致服务响应延迟",confidence_score:1.5},
+    pass:false,
+    errors:[{tier:"syntax",name:"语法推演",msg:"Float 1.5 exceeds maximum value of 1",ref:"#/properties/confidence_score/Maximum"}]
+  },
+  safety: {
+    data:{alert_level:"P0",root_cause:"CPU 使用率超过阈值，导致服务响应延迟",confidence_score:0.85,remediation:[{action_type:"automated",description:"自动修复"}]},
+    pass:false,
+    errors:[{tier:"safety",name:"安全推演",msg:"AI 禁止建议自动执行。命中禁止模式: 'automated'",ref:"rules/safety/destructive.yaml"}]
+  },
+  multi: {
+    data:{alert_level:"严重",root_cause:"CPU",confidence_score:1.5},
+    pass:false,
+    errors:[
+      {tier:"semantic",name:"语义推演",msg:'Value "严重" is not defined in enum',ref:"#/properties/alert_level/Enum"},
+      {tier:"syntax",name:"语法推演",msg:"String 'CPU' is less than minimum length of 10",ref:"#/properties/root_cause/MinimumLength"},
+      {tier:"syntax",name:"语法推演",msg:"Float 1.5 exceeds maximum value of 1",ref:"#/properties/confidence_score/Maximum"}
+    ]
+  }
+};
+
+function escapeHtml(s){return s.replace(/[&<<>"']/g,c=>({'&':'&amp;','<<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function syntaxHighlightJson(obj){
+  const json = JSON.stringify(obj,null,2);
+  return escapeHtml(json)
+    .replace(/"([^"]+)":/g,'<<span class="key">"$1"</span>:')
+    .replace(/: "([^"]*)"/g,': <span class="str">"$1"</span>')
+    .replace(/: (\d+\.?\d*)/g,': <span class="num">$1</span>')
+    .replace(/: (true|false)/g,': <span class="bool">$1</span>');
+}
+
+function run(key){
+  const sc = scenarios[key];
+  const data = sc.data;
+
+  // 栏1: YAML
+  document.getElementById('yaml-panel').innerHTML = '<pre>' + yamlSources[key] + '</pre>';
+
+  // 栏2: JSON Schema
+  document.getElementById('schema-panel').innerHTML = '<pre>' + syntaxHighlightJson(schema) + '</pre>';
+
+  // 栏3: LLM 输出
+  document.getElementById('json-panel').innerHTML = '<pre>' + syntaxHighlightJson(data) + '</pre>';
+
+  // 栏4: 推演
+  const tiers = [];
+  // T1 语法
+  const t1Fail = sc.errors.some(e=>e.tier==="syntax");
+  tiers.push({tier:"syntax",name:"语法推演",status:t1Fail?"block":"pass",detail:t1Fail?"结构或数值越界":"结构完整，字段类型正确"});
+
+  // T2 语义
+  const t2Fail = sc.errors.some(e=>e.tier==="semantic");
+  if(t1Fail && !t2Fail){
+    tiers.push({tier:"semantic",name:"语义推演",status:"skip",detail:"语法层阻断，短路终止"});
+  }else{
+    tiers.push({tier:"semantic",name:"语义推演",status:t2Fail?"block":"pass",detail:t2Fail?"语义令牌不在白名单":"语义令牌引用正确"});
+  }
+
+  // T3 安全
+  const t3Fail = sc.errors.some(e=>e.tier==="safety");
+  if((t1Fail||t2Fail) && !t3Fail){
+    tiers.push({tier:"safety",name:"安全推演",status:"skip",detail:"前层阻断，短路终止"});
+  }else{
+    tiers.push({tier:"safety",name:"安全推演",status:t3Fail?"block":"pass",detail:t3Fail?"命中禁止模式":"无禁止模式命中"});
+  }
+
+  // T4 美感
+  const t4Warn = data.root_cause && data.root_cause.length>150;
+  tiers.push({tier:"aesthetic",name:"美感推演",status:t4Warn?"warn":"pass",detail:t4Warn?"文案长度超过建议":"信息密度与可读性达标"});
+
+  document.getElementById('tier-panel').innerHTML = tiers.map(t=>{
+    const icon = t.status==="pass"?"✅":t.status==="block"?"❌":t.status==="warn"?"⚠️":"⏸️";
+    return `<div class="tier-item ${t.status}">
+      <div class="tier-icon">${icon}</div>
+      <div>
+        <div class="tier-name">${t.name} [${t.status.toUpperCase()}]</div>
+        <div class="tier-desc">${t.detail}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const verdict = document.getElementById('verdict-panel');
+  if(sc.pass){
+    verdict.className="verdict pass";
+    verdict.textContent="✅ PASS — 四层推演通过，允许渲染";
+  }else{
+    verdict.className="verdict block";
+    verdict.textContent="❌ BLOCK — 推演失败，强制拦截并升级人工";
+  }
+
+  // 栏5: 渲染
+  const level = data.alert_level;
+  const isValid = ["P0","P1","P2","P3"].includes(level);
+  const cardClass = isValid && level==="P0"?"critical":isValid?"warning":"normal";
+  const badgeClass = isValid?level.toLowerCase():"severe";
+  const badgeText = isValid?level:"UNKNOWN";
+  const cp = Math.min(Math.max((data.confidence_score||0)*100,0),100);
+  const cfClass = cp>80?"high":cp>50?"medium":"low";
+
+  document.getElementById('alert-card').className='alert-card '+cardClass;
+  document.getElementById('alert-card').innerHTML=`
+    <div class="alert-header">
+      <span class="badge ${badgeClass}">${badgeText}</span>
+      ${isValid&&level==="P0"?'<span class="pulse"></span>':''}
+    </div>
+    <div class="title">系统告警</div>
+    <div class="cause">${data.root_cause||'未提供根因'}</div>
+    <div class="meta"><span>置信度: ${data.confidence_score!==undefined?data.confidence_score:'N/A'}</span><span>${sc.pass?'✓ 合规':'⚠️ 存在违规'}</span></div>
+    <div class="cbar"><div class="cfill ${cfClass}" style="width:${cp}%"></div></div>
+    ${data.remediation&&data.remediation.length?`<div style="margin-top:10px;font-size:12px;padding:8px;background:#f5f5f5;border-radius:4px;">${data.remediation.map(r=>`<span style="color:${r.action_type==='automated'?'var(--red)':'var(--green)'}">${r.action_type==='automated'?'⚠️ ':'✓ '}${r.description}</span>`).join('<br>')}</div>`:''}
+  `;
+
+  // 拦截遮罩
+  if(!sc.pass){
+    const first = sc.errors[0];
+    document.getElementById('block-overlay').classList.remove('hidden');
+    document.getElementById('block-reason').innerHTML=
+      `<strong>违规层级：</strong>Four-Tier ${first.tier.toUpperCase()}<<br>
+       <strong>规则编号：</strong>${first.ref||'N/A'}<<br>
+       <strong>拦截原因：</strong>${first.msg}<br><br>
+       <small>阻断优于修正：不触发 LLM 自动重试，直接升级人工</small>`;
+  }else{
+    document.getElementById('block-overlay').classList.add('hidden');
+  }
+}
+
+function reset(){
+  document.getElementById('scenario').value='valid';
+  run('valid');
+}
+
+document.getElementById('scenario').addEventListener('change',e=>run(e.target.value));
+run('valid');
 </script>
 </body>
 </html>
