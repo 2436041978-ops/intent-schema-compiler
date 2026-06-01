@@ -3,114 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>intent-schema-compiler — 约束显化载体</title>
+    <title>Schema-As-Code 约束校验演示</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <h1>intent-schema-compiler</h1>
-        <p>Schema-As-Code 控制平面载体 — 约束显化演示</p>
-    </header>
+    <div class="container">
+        <header>
+            <h1>Schema-As-Code 约束校验演示</h1>
+            <p>意图协议 → 编译产物 → 机器校验</p>
+        </header>
 
-    <main>
-        <!-- 对比区 -->
-        <section class="compare">
-            <h2>从「传统 Token」到「语义令牌」</h2>
-            <div class="grid">
-                <div class="card legacy">
-                    <h3>传统 Design Token</h3>
-                    <pre>--color-danger: #D32F2F;
---spacing-md: 16px;
---radius-sm: 4px;</pre>
-                    <div class="preview legacy-alert">
-                        <div class="box">⚠️ 严重故障</div>
+        <div class="main">
+            <!-- 左侧：协议源文件 + 编译产物 + LLM 输出 -->
+            <aside class="control-panel">
+                <h2>选择 LLM 输出场景</h2>
+                <select id="llm-selector">
+                    <option value="valid">✅ 合规输出（命中语义令牌）</option>
+                    <option value="synonym">❌ 语义漂移（"严重"替代 P0）</option>
+                    <option value="length">❌ 信息不足（根因 < 10 字符）</option>
+                    <option value="confidence">❌ 数值越界（置信度 1.5）</option>
+                    <option value="safety">❌ 安全偏差（建议自动执行）</option>
+                    <option value="multi">❌ 复合偏差（3 条规则）</option>
+                </select>
+
+                <div class="yaml-source">
+                    <div class="source-header">
+                        <h3>📄 YAML 协议源文件</h3>
+                        <span id="yaml-badge" class="badge">语义层</span>
                     </div>
-                    <p class="desc">仅定义视觉属性。LLM 不知道"严重"代表什么，也无法被机器校验。</p>
+                    <div class="file-path" id="yaml-path">intent-schema-compiler/语义层/semantic-tokens.yaml</div>
+                    <pre id="yaml-display"></pre>
+                    <div class="reference-chain">
+                        <span>引用链：</span>
+                        <code id="yaml-ref">intent-schema.json → semantic-tokens.yaml</code>
+                    </div>
                 </div>
 
-                <div class="arrow">→</div>
-
-                <div class="card schema">
-                    <h3>Schema-As-Code 语义令牌</h3>
-                    <pre>status.critical:
-  canonical_id: "ST-001"
-  immutable: true
-  visual_mapping:
-    color_token: "status.critical"
-    motion_token: "pulse.red.urgent"
-  llm_constraints:
-    - "必须包含故障定位"
-    - "禁止建议自动修复"
-  synonym_firewall:
-    prohibited: ["严重"]</pre>
-                    <div class="preview schema-alert">
-                        <div class="badge">P0</div>
-                        <span class="pulse"></span>
-                        <div class="title">系统级故障</div>
-                        <div class="cause">CPU 使用率超过阈值，导致服务响应延迟</div>
-                        <div class="meta">置信度: 0.85 | 需人工确认</div>
-                    </div>
-                    <p class="desc">色值 + 语义 + LLM 约束 + 同义词防火墙。机器可读、可编译、可拦截。</p>
+                <div class="schema-compiled">
+                    <h3>🔧 编译产物：JSON Schema</h3>
+                    <pre id="schema-display"></pre>
                 </div>
-            </div>
-        </section>
 
-        <!-- 三层协议 -->
-        <section class="layers">
-            <h2>三层协议结构</h2>
-            <div class="tabs">
-                <button class="tab active" onclick="show('semantic',this)">语义层</button>
-                <button class="tab" onclick="show('governance',this)">治理层</button>
-                <button class="tab" onclick="show('execution',this)">执行层</button>
-            </div>
-            <div class="content" id="semantic">
-                <h4>语义层 — 定义「应该有什么」</h4>
-                <pre>semantic_tokens:
-  status.critical:
-    description: "系统级故障，需立即响应"
-    llm_constraints:
-      - "生成内容必须包含明确的故障定位信息"</pre>
-            </div>
-            <div class="content hidden" id="governance">
-                <h4>治理层 — 定义「不能突破什么」</h4>
-                <pre>human_ai_boundary:
-  destructive-action:
-    ai_prohibited:
-      - "直接执行修复操作"
-      - "修改告警阈值配置"</pre>
-            </div>
-            <div class="content hidden" id="execution">
-                <h4>执行层 — 定义「怎么验证」</h4>
-                <pre>scenario_tests:
-  - case: "同义词替代"
-    mock_response: { alert_level: "严重" }
-    expected_validation: "BLOCK"</pre>
-            </div>
-        </section>
+                <div class="raw-json">
+                    <h3>🤖 LLM 原始输出</h3>
+                    <pre id="json-display"></pre>
+                </div>
+            </aside>
 
-        <!-- 引用闭环 -->
-        <section class="loop">
-            <h2>引用闭环</h2>
-            <div class="diagram">
-                <div class="node">意图契约<br><small>intent-schema.json</small></div>
-                <div class="arr">→</div>
-                <div class="node">语义令牌<br><small>semantic-tokens.yaml</small></div>
-                <div class="arr">→</div>
-                <div class="node">约束规则<br><small>human-ai-boundary.yaml</small></div>
-                <div class="arr">→</div>
-                <div class="node">场景测试<br><small>scenario-tests.yaml</small></div>
-                <div class="arr">→</div>
-                <div class="node">意图契约</div>
-            </div>
-        </section>
-    </main>
+            <!-- 中间：推演引擎 -->
+            <section class="validator-engine">
+                <h2>⚡ 四层推演校验</h2>
+                <div id="tier-results" class="tier-list"></div>
+                <div id="final-verdict" class="verdict"></div>
+            </section>
 
-    <footer>
-        <p>
-            <a href="https://github.com/2436041978-ops/intent-schema-compiler" target="_blank">GitHub 仓库</a> |
-            <a href="https://www.yuque.com/u222739/draddi" target="_blank">语雀文档</a>
-        </p>
-    </footer>
+            <!-- 右侧：渲染结果 -->
+            <section class="render-result">
+                <h2>🖥️ 界面渲染</h2>
+                <div id="alert-card" class="alert-card"></div>
+                <div id="block-overlay" class="block-overlay hidden">
+                    <div class="block-modal">
+                        <h3>🚫 约束协议拦截</h3>
+                        <p id="block-reason"></p>
+                        <button onclick="app.reset()">重置演示</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <footer>
+            <p>
+                控制平面：<a href="https://github.com/2436041978-ops/intent-schema-compiler" target="_blank">intent-schema-compiler</a> |
+                架构仓库：<a href="https://github.com/2436041978-ops/schema-as-code" target="_blank">schema-as-code</a>
+            </p>
+        </footer>
+    </div>
 
     <script src="app.js"></script>
 </body>
