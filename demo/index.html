@@ -110,6 +110,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 
 .render-wrap{position:relative;height:100%;display:flex;flex-direction:column}
 
+/* 空白占位状态 */
+.placeholder-state{display:flex;align-items:center;justify-content:center;height:100%;color:var(--text2);font-size:12px;font-family:var(--mono);text-align:center;padding:20px}
+.placeholder-state .icon{font-size:24px;margin-bottom:8px;display:block}
+
 /* 底部 */
 .bottombar{flex:none;height:32px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2);border-top:1px solid var(--border);background:var(--card);gap:12px}
 .bottombar a{color:var(--blue);text-decoration:none}
@@ -127,6 +131,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
   </div>
   <div class="right">
     <select id="scenario">
+      <option value="" selected>👆 选择输出场景</option>
       <option value="valid">✅ 合法输出</option>
       <option value="synonym">❌ 同义词漂移</option>
       <option value="length">❌ 文案过短</option>
@@ -141,27 +146,62 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 <div class="pipeline">
   <div class="panel">
     <div class="panel-header">📄 YAML 协议</div>
-    <div class="panel-body yaml" id="yaml-panel"></div>
+    <div class="panel-body yaml" id="yaml-panel">
+      <div class="placeholder-state">
+        <div>
+          <span class="icon">📋</span>
+          <div>选择场景后加载 YAML 协议</div>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="panel">
     <div class="panel-header">⚙️ JSON Schema</div>
-    <div class="panel-body json" id="schema-panel"></div>
+    <div class="panel-body json" id="schema-panel">
+      <div class="placeholder-state">
+        <div>
+          <span class="icon">📐</span>
+          <div>选择场景后加载 JSON Schema</div>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="panel">
     <div class="panel-header">🤖 LLM 输出</div>
-    <div class="panel-body json" id="json-panel"></div>
+    <div class="panel-body json" id="json-panel">
+      <div class="placeholder-state">
+        <div>
+          <span class="icon">🤖</span>
+          <div>选择场景后加载 LLM 输出</div>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="panel">
     <div class="panel-header">🛡️ 四层推演</div>
     <div class="panel-body" style="padding:8px;display:flex;flex-direction:column">
-      <div class="tier-list" id="tier-panel"></div>
+      <div class="tier-list" id="tier-panel">
+        <div class="placeholder-state">
+          <div>
+            <span class="icon">🛡️</span>
+            <div>选择场景后执行四层推演</div>
+          </div>
+        </div>
+      </div>
       <div id="verdict-panel"></div>
     </div>
   </div>
   <div class="panel">
     <div class="panel-header">🖥️ 界面渲染</div>
     <div class="panel-body render-wrap">
-      <div id="alert-card" style="opacity:0;transform:translateY(8px);transition:opacity .3s,transform .3s"></div>
+      <div id="alert-card" style="opacity:0;transform:translateY(8px);transition:opacity .3s,transform .3s">
+        <div class="placeholder-state">
+          <div>
+            <span class="icon">🖥️</span>
+            <div>选择场景后渲染界面结果</div>
+          </div>
+        </div>
+      </div>
       <div id="block-overlay" class="overlay hidden">
         <div class="omodal">
           <h3>🚫 意图协议拦截</h3>
@@ -306,113 +346,4 @@ const scenarios = {
   confidence:{data:{alert_level:"P0",root_cause:"CPU 使用率超过阈值，导致服务响应延迟",confidence_score:1.5},pass:false,errors:[{tier:"syntax",name:"语法推演",msg:"Float 1.5 exceeds maximum value of 1",ref:"#/confidence_score/Maximum"}]},
   safety:{data:{alert_level:"P0",root_cause:"CPU 使用率超过阈值，导致服务响应延迟",confidence_score:0.85,remediation:[{action_type:"automated",description:"自动修复"}]},pass:false,errors:[{tier:"safety",name:"安全推演",msg:"AI 禁止建议自动执行。命中禁止模式: 'automated'",ref:"rules/safety/destructive.yaml"}]},
   multi:{data:{alert_level:"严重",root_cause:"CPU",confidence_score:1.5},pass:false,errors:[
-    {tier:"semantic",name:"语义推演",msg:'Value "严重" is not defined in enum',ref:"#/alert_level/Enum"},
-    {tier:"syntax",name:"语法推演",msg:"String 'CPU' is less than minimum length of 10",ref:"#/root_cause/MinLength"},
-    {tier:"syntax",name:"语法推演",msg:"Float 1.5 exceeds maximum value of 1",ref:"#/confidence_score/Maximum"}
-  ]}
-};
-
-function esc(s){return s.replace(/[&<<>"']/g,c=>({'&':'&amp;','<<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function hlJSON(o){return esc(JSON.stringify(o,null,2)).replace(/"([^"]+)":/g,'<<span class="k">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="s">"$1"</span>').replace(/: (\d+\.?\d*)/g,': <span class="n">$1</span>').replace(/: (true|false)/g,': <span class="b">$1</span>');}
-
-function run(key){
-  const sc = scenarios[key];
-  const data = sc.data;
-  const errors = sc.errors || [];
-
-  // 强制重置所有状态
-  document.getElementById('tier-panel').innerHTML='';
-  document.getElementById('verdict-panel').innerHTML='';
-  document.getElementById('verdict-panel').className='';
-  document.getElementById('block-overlay').classList.add('hidden');
-
-  // 填充内容
-  document.getElementById('yaml-panel').innerHTML='<pre>'+yamlSources[key]+'</pre>';
-  document.getElementById('schema-panel').innerHTML='<pre>'+hlJSON(schema)+'</pre>';
-  document.getElementById('json-panel').innerHTML='<pre>'+hlJSON(data)+'</pre>';
-
-  // 推演动画
-  const tiers=[];
-  const t1Fail=errors.some(e=>e.tier==="syntax");
-  tiers.push({tier:"syntax",name:"语法推演",status:t1Fail?"block":"pass",detail:t1Fail?errors.filter(e=>e.tier==="syntax").map(e=>e.msg).join("; "):"结构完整，字段类型正确"});
-
-  const t2Fail=errors.some(e=>e.tier==="semantic");
-  if(t1Fail && !t2Fail){tiers.push({tier:"semantic",name:"语义推演",status:"skip",detail:"语法层阻断，短路终止"});}
-  else{tiers.push({tier:"semantic",name:"语义推演",status:t2Fail?"block":"pass",detail:t2Fail?"语义令牌不在白名单":"语义令牌引用正确，同义词防火墙通过"});}
-
-  const t3Fail=errors.some(e=>e.tier==="safety");
-  if((t1Fail||t2Fail) && !t3Fail){tiers.push({tier:"safety",name:"安全推演",status:"skip",detail:"前层阻断，短路终止"});}
-  else{tiers.push({tier:"safety",name:"安全推演",status:t3Fail?"block":"pass",detail:t3Fail?"命中禁止模式":"无禁止模式命中"});}
-
-  const t4Warn=data.root_cause && data.root_cause.length>150;
-  tiers.push({tier:"aesthetic",name:"美感推演",status:t4Warn?"warn":"pass",detail:t4Warn?"文案长度超过建议":"信息密度与可读性达标"});
-
-  const tierContainer = document.getElementById('tier-panel');
-  tiers.forEach((t,i)=>{
-    setTimeout(()=>{
-      const el=document.createElement('div');
-      el.className=`tier-item ${t.status}`;
-      const icon=t.status==="pass"?"✅":t.status==="block"?"❌":t.status==="warn"?"⚠️":"⏸️";
-      el.innerHTML=`<div class="tier-icon">${icon}</div><div><div class="tier-name">${t.name} [${t.status.toUpperCase()}]</div><div class="tier-desc">${t.detail}</div></div>`;
-      tierContainer.appendChild(el);
-    },i*120);
-  });
-
-  const v=document.getElementById('verdict-panel');
-  setTimeout(()=>{
-    v.className=`verdict ${sc.pass?'pass':'block'}`;
-    v.textContent=sc.pass?'✅ PASS — 四层推演全部通过，允许进入渲染管线':'❌ BLOCK — 推演失败，强制拦截并升级人工';
-  },tiers.length*120+100);
-
-  // 卡片渲染动画
-  const card=document.getElementById('alert-card');
-  card.style.opacity='0';
-  card.style.transform='translateY(8px)';
-
-  const level=data.alert_level;
-  const isValid=["P0","P1","P2","P3"].includes(level);
-  const cardClass=isValid&&level==="P0"?"critical":isValid?"warning":"normal";
-  const badgeClass=isValid?level.toLowerCase():"severe";
-  const badgeText=isValid?level:"UNKNOWN";
-  const cp=Math.min(Math.max((data.confidence_score||0)*100,0),100);
-  const cfClass=cp>80?"high":cp>50?"medium":"low";
-
-  setTimeout(()=>{
-    card.className='alert-card '+cardClass;
-    card.innerHTML=`
-      <div class="alert-header"><span class="badge ${badgeClass}">${badgeText}</span>${isValid&&level==="P0"?'<span class="pulse"></span>':''}</div>
-      <div class="title">系统告警</div>
-      <div class="cause">${data.root_cause||'未提供根因'}</div>
-      <div class="meta"><span>置信度: ${data.confidence_score!==undefined?data.confidence_score:'N/A'}</span><span>${sc.pass?'✓ 合规':'⚠️ 存在违规'}</span></div>
-      <div class="cbar"><div class="cfill ${cfClass}" style="width:0%"></div></div>
-      ${data.remediation&&data.remediation.length?`<div style="margin-top:8px;font-size:11px;padding:6px;background:#f6f8fa;border-radius:4px;">${data.remediation.map(r=>`<span style="color:${r.action_type==='automated'?'var(--red)':'var(--green)'}">${r.action_type==='automated'?'⚠️ ':'✓ '}${r.description}</span>`).join('<br>')}</div>`:''}
-    `;
-    card.style.opacity='1';
-    card.style.transform='translateY(0)';
-    setTimeout(()=>card.querySelector('.cfill').style.width=cp+'%',50);
-  },100);
-
-  // 拦截遮罩
-  if(!sc.pass){
-    const first=errors[0];
-    setTimeout(()=>{
-      document.getElementById('block-overlay').classList.remove('hidden');
-      document.getElementById('block-reason').innerHTML=
-        `<strong>违规层级：</strong>Four-Tier ${first.tier.toUpperCase()}<<br>
-         <strong>规则路径：</strong>${first.ref||'N/A'}<<br>
-         <strong>拦截原因：</strong>${first.msg}<br><br>
-         <small>阻断优于修正：不触发 LLM 自动重试，直接升级人工</small>`;
-    },tiers.length*120+250);
-  }
-}
-
-function reset(){
-  document.getElementById('scenario').value='valid';
-  run('valid');
-}
-
-document.getElementById('scenario').addEventListener('change',e=>run(e.target.value));
-run('valid');
-</script>
-</body>
-</html>
+    {tier:"semantic",name:"语义
