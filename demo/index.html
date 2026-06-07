@@ -300,7 +300,7 @@ const schema = {
 };
 
 const scenarios = {
-  valid:{data:{alert_level:"P0",root_cause:"CPU 使用率超过阈值，导致服务响应延迟",confidence_score:0.85,remediation:[{action_type:"manual",description:"检查内存占用进程"}]},pass:true},
+  valid:{data:{alert_level:"P0",root_cause:"CPU 使用率超过阈值，导致服务响应延迟",confidence_score:0.85,remediation:[{action_type:"manual",description:"检查内存占用进程"}]},pass:true,errors:[]},
   synonym:{data:{alert_level:"严重",root_cause:"CPU 使用率超过阈值，导致服务响应延迟",confidence_score:0.85},pass:false,errors:[{tier:"semantic",name:"语义推演",msg:'Value "严重" is not defined in enum',ref:"#/alert_level/Enum"}]},
   length:{data:{alert_level:"P0",root_cause:"CPU",confidence_score:0.85},pass:false,errors:[{tier:"syntax",name:"语法推演",msg:"String 'CPU' is less than minimum length of 10",ref:"#/root_cause/MinLength"}]},
   confidence:{data:{alert_level:"P0",root_cause:"CPU 使用率超过阈值，导致服务响应延迟",confidence_score:1.5},pass:false,errors:[{tier:"syntax",name:"语法推演",msg:"Float 1.5 exceeds maximum value of 1",ref:"#/confidence_score/Maximum"}]},
@@ -318,10 +318,12 @@ function hlJSON(o){return esc(JSON.stringify(o,null,2)).replace(/"([^"]+)":/g,'<
 function run(key){
   const sc = scenarios[key];
   const data = sc.data;
+  const errors = sc.errors || [];
 
-  // 先清空动画状态
+  // 强制重置所有状态
   document.getElementById('tier-panel').innerHTML='';
   document.getElementById('verdict-panel').innerHTML='';
+  document.getElementById('verdict-panel').className='';
   document.getElementById('block-overlay').classList.add('hidden');
 
   // 填充内容
@@ -331,14 +333,14 @@ function run(key){
 
   // 推演动画
   const tiers=[];
-  const t1Fail=sc.errors.some(e=>e.tier==="syntax");
-  tiers.push({tier:"syntax",name:"语法推演",status:t1Fail?"block":"pass",detail:t1Fail?sc.errors.filter(e=>e.tier==="syntax").map(e=>e.msg).join("; "):"结构完整，字段类型正确"});
+  const t1Fail=errors.some(e=>e.tier==="syntax");
+  tiers.push({tier:"syntax",name:"语法推演",status:t1Fail?"block":"pass",detail:t1Fail?errors.filter(e=>e.tier==="syntax").map(e=>e.msg).join("; "):"结构完整，字段类型正确"});
 
-  const t2Fail=sc.errors.some(e=>e.tier==="semantic");
+  const t2Fail=errors.some(e=>e.tier==="semantic");
   if(t1Fail && !t2Fail){tiers.push({tier:"semantic",name:"语义推演",status:"skip",detail:"语法层阻断，短路终止"});}
-  else{tiers.push({tier:"semantic",name:"语义推演",status:t2Fail?"block":"pass",detail:t2Fail?"语义令牌不在白名单":"语义令牌引用正确"});}
+  else{tiers.push({tier:"semantic",name:"语义推演",status:t2Fail?"block":"pass",detail:t2Fail?"语义令牌不在白名单":"语义令牌引用正确，同义词防火墙通过"});}
 
-  const t3Fail=sc.errors.some(e=>e.tier==="safety");
+  const t3Fail=errors.some(e=>e.tier==="safety");
   if((t1Fail||t2Fail) && !t3Fail){tiers.push({tier:"safety",name:"安全推演",status:"skip",detail:"前层阻断，短路终止"});}
   else{tiers.push({tier:"safety",name:"安全推演",status:t3Fail?"block":"pass",detail:t3Fail?"命中禁止模式":"无禁止模式命中"});}
 
@@ -359,7 +361,7 @@ function run(key){
   const v=document.getElementById('verdict-panel');
   setTimeout(()=>{
     v.className=`verdict ${sc.pass?'pass':'block'}`;
-    v.textContent=sc.pass?'✅ PASS — 四层推演通过，允许渲染':'❌ BLOCK — 推演失败，强制拦截并升级人工';
+    v.textContent=sc.pass?'✅ PASS — 四层推演全部通过，允许进入渲染管线':'❌ BLOCK — 推演失败，强制拦截并升级人工';
   },tiers.length*120+100);
 
   // 卡片渲染动画
@@ -392,7 +394,7 @@ function run(key){
 
   // 拦截遮罩
   if(!sc.pass){
-    const first=sc.errors[0];
+    const first=errors[0];
     setTimeout(()=>{
       document.getElementById('block-overlay').classList.remove('hidden');
       document.getElementById('block-reason').innerHTML=
