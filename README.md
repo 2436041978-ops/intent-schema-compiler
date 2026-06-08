@@ -14,11 +14,10 @@
 ### 演示场景
 
 **✅ 合法输出：LLM 严格遵守语义契约**
-![合法输出截图]([file:///Users/weiwen/Desktop/%E5%9B%BE%201%EF%BC%9A%E5%90%88%E6%B3%95%E8%BE%93%E5%87%BA%E9%80%9A%E8%BF%87.png](https://github.com/user-attachments/assets/c7f9af32-1e9d-46e0-bab2-6a31f5dc57da))
+![合法输出截图]([https://user-images.githubusercontent.com/xxxx/yyyy.png](https://github.com/user-attachments/assets/c7f9af32-1e9d-46e0-bab2-6a31f5dc57da))
 
 **❌ 违规输出：LLM 用"严重"替代了"critical"，被同义词防火墙拦截**
-![违规输出截图](file:///Users/weiwen/Desktop/%E5%9B%BE%202%EF%BC%9A%E8%BF%9D%E8%A7%84%E8%BE%93%E5%87%BA%E8%A2%AB%E6%8B%A6%E6%88%AA.png)
-
+![违规输出截图](https://user-images.githubusercontent.com/xxxx/zzzz.png)
 ---
 
 ## 这个 DEMO 展示了什么？
