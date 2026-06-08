@@ -1,31 +1,26 @@
 # =============================================================================
 # Semantic Tokens Registry — 语义令牌注册表
 # =============================================================================
-# Schema-As-Code 框架的领域语义单元定义。
-# 所有语义令牌在此集中注册，确保跨意图的语义一致性，防止语义漂移。
-#
-# 设计原则：
-#   1. Single Source of Truth — 每个语义概念仅有一个权威定义
-#   2. Canonical Form Enforcement — 强制规范形式，消除表达歧义
-#   3. Constraint-Driven — 每个令牌附带结构约束和语义约束
-#   4. Versioned Evolution — 令牌变更需遵循版本兼容性策略
+# ⚠️ 本文件为 Schema-As-Code 概念验证的演示素材，非生产级规范。
+# 展示如何将领域核心概念（如告警、故障、严重级别）形式化为机器可读的语义单元。
+# 其中的"治理""兼容性策略"等描述仅为展示形式化能力，不代表真实的组织流程。
 #
 # Version: 1.0.0
-# Schema:  https://intent-schema-compiler.dev/kernel/semantic-tokens-schema.yaml
 # =============================================================================
 
 registry_metadata:
   name: intent-schema-compiler-semantic-tokens
   version: 1.0.0
   description: |
-    意图编译器语义令牌注册表。定义 Schema-As-Code 框架下的领域核心语义单元，
+    意图编译器语义令牌注册表示例。定义 Schema-As-Code 概念验证下的领域核心语义单元，
     为意图契约提供标准化的语义引用目标。所有在意图定义中使用的语义令牌
     必须在此注册表中存在对应的条目。
   last_updated: "2024-07-15T00:00:00Z"
-  maintainer: "schema-governance@company.dev"
-  governance_policy: |
-    令牌的新增、修改和废弃需经过语义治理委员会审批。
-    破坏性变更仅在主版本升级时允许，且必须提供迁移指南。
+  maintainer: "schema-as-code@example.dev"
+  # 以下为版本管理说明，演示语义令牌的版本化能力
+  version_notes: |
+    本注册表为概念验证，展示语义令牌如何被版本化管理。
+    实际生产环境需根据团队规模调整治理粒度。
   compatibility_rules:
     - "补丁版本更新（x.y.Z）：仅添加新令牌，向后完全兼容"
     - "次要版本更新（x.Y.z）：可添加令牌字段，向后兼容"
