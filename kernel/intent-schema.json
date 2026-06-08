@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://intent-schema-compiler.dev/kernel/intent-schema.json",
   "title": "Intent Schema — 意图契约元定义",
-  "description": "Schema-As-Code 框架的核心元 Schema。定义意图（Intent）的形式化结构，作为编译器解析、校验、分发意图契约的单一事实来源。",
+  "description": "Schema-As-Code 概念验证的意图契约定义。用于演示意图形式化与自动校验的概念验证，展示设计意图如何被结构化为机器可读格式。",
   "version": "1.0.0",
   "type": "object",
   "required": ["intent_id", "intent_name", "version", "description", "semantic_tokens", "input_constraints", "output_constraints"],
@@ -307,7 +307,7 @@
         "retry_backoff_ms": 500
       },
       "metadata": {
-        "author": "sre-team@company.dev",
+        "author": "sre-team@example.dev",
         "created_at": "2024-01-15T08:00:00Z",
         "updated_at": "2024-06-20T14:30:00Z",
         "tags": ["observability", "alerting", "sre"],
@@ -396,12 +396,12 @@
       ],
       "fallback_strategy": {
         "strategy_type": "human_escalation",
-        "escalation_target": "oncall-manager@company.dev",
+        "escalation_target": "oncall-manager@example.dev",
         "max_retries": 1,
         "retry_backoff_ms": 1000
       },
       "metadata": {
-        "author": "platform-team@company.dev",
+        "author": "platform-team@example.dev",
         "created_at": "2024-03-01T10:00:00Z",
         "updated_at": "2024-07-10T09:15:00Z",
         "tags": ["incident-management", "summarization", "sre"],
