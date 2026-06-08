@@ -1,45 +1,44 @@
-// 设计意图契约：告警卡片（内联版，替代 rules/input-constraints/prompt-boundary.yaml）
-const alertCardIntent = {
-  semantic_tokens: {
-    "status.critical": {
-      canonical_id: "ST-001",
-      description: "系统级故障，需立即响应",
-      llm_constraints: [
-        "生成内容必须包含故障定位信息",
-        "禁止提供未经验证的修复建议"
-      ],
-      synonym_firewall: {
-        prohibited: [
-          { term: "严重", standard_token: "critical" },
-          { term: "紧急", standard_token: "critical" }
-        ]
-      }
-    }
-  },
-  response_schema: {
-    type: "object",
-    required: ["alert_level", "root_cause", "confidence_score"],
-    properties: {
-      alert_level: {
-        type: "string",
-        enum: ["P0", "P1", "P2", "P3"]
-      },
-      root_cause: {
-        type: "string",
-        minLength: 10,
-        maxLength: 200
-      },
-      confidence_score: {
-        type: "number",
-        minimum: 0,
-        maximum: 1
-      }
-    }
-  },
-  human_ai_boundary: {
-    ai_prohibited: [
-      "直接执行修复操作",
-      "修改告警阈值配置"
-    ]
-  }
-};
+# intent-schema-compiler :: 演示用语义契约
+# 
+# 这不是生产级安全框架，而是 Schema-As-Code 概念验证的核心示例：
+# 当 LLM 生成告警卡片时，"critical" 不能被替换为 "严重" 或 "紧急"，
+# 且禁止建议自动修复等高危操作。
+
+$schema: "https://json-schema.org/draft-07/schema#"
+title: "AlertCardIntent"
+description: "告警卡片的设计意图契约（概念验证演示）"
+
+semantic_tokens:
+  status.critical:
+    canonical_id: "ST-001"
+    description: "系统级故障，需立即响应"
+    llm_constraints:
+      - "生成内容必须包含故障定位信息"
+      - "禁止提供未经验证的修复建议"
+    synonym_firewall:
+      prohibited:
+        - term: "严重"
+          standard_token: "critical"
+        - term: "紧急"
+          standard_token: "critical"
+
+response_schema:
+  type: "object"
+  required: ["alert_level", "root_cause", "confidence_score"]
+  properties:
+    alert_level:
+      type: "string"
+      enum: ["P0", "P1", "P2", "P3"]
+    root_cause:
+      type: "string"
+      minLength: 10
+      maxLength: 200
+    confidence_score:
+      type: "number"
+      minimum: 0
+      maximum: 1
+
+human_ai_boundary:
+  ai_prohibited:
+    - "直接执行修复操作"
+    - "修改告警阈值配置"
