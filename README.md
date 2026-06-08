@@ -14,10 +14,11 @@
 ### 演示场景
 
 **✅ 合法输出：LLM 严格遵守语义契约**
-![合法输出截图]([https://user-images.githubusercontent.com/xxxx/yyyy.png](https://github.com/user-attachments/assets/c7f9af32-1e9d-46e0-bab2-6a31f5dc57da))
+![合法输出截图]([https://user-images.githubusercontent.com/xxxx/yyyy.png](https://github.com/2436041978-ops/intent-schema-compiler/issues/1))
 
 **❌ 违规输出：LLM 用"严重"替代了"critical"，被同义词防火墙拦截**
-![违规输出截图](https://user-images.githubusercontent.com/xxxx/zzzz.png)
+![违规输出截图]([https://user-images.githubusercontent.com/xxxx/zzzz.png](https://github.com/2436041978-ops/intent-schema-compiler/issues/2))
+
 ---
 
 ## 这个 DEMO 展示了什么？
