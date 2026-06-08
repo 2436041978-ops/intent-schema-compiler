@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>约束显化：从 YAML 协议到机器安检</title>
+<title>约束显化：从 YAML 协议到机器校验</title>
 <style>
 :root{
   --bg:#f0f2f5;
@@ -145,8 +145,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;b
 <body>
 <div class="topbar">
   <div>
-    <h1>🔒 约束显化：从 YAML 协议到机器安检</h1>
-    <div class="sub">intent-schema-compiler → JSON Schema → Four-Tier Validator</div>
+    <h1>🔒 约束显化：从 YAML 协议到机器校验</h1>
+    <div class="sub">intent-schema-compiler → JSON Schema → 四层推演</div>
   </div>
   <div class="right">
     <select id="scenario">
@@ -336,7 +336,7 @@ const scenarios = {
   ]}
 };
 
-function esc(s){return s.replace(/[&<<>"']/g,c=>({'&':'&amp;','<<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function esc(s){return s.replace(/[&<>\"']/g,c=>({'&':'&amp;','<<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function hlJSON(o){return esc(JSON.stringify(o,null,2)).replace(/"([^"]+)":/g,'<<span class="k">"$1"</span>:').replace(/: "([^"]*)"/g,': <span class="s">"$1"</span>').replace(/: (\d+\.?\d*)/g,': <span class="n">$1</span>').replace(/: (true|false)/g,': <span class="b">$1</span>');}
 
 /* ==================== 初始状态：仅加载 YAML ==================== */
@@ -406,7 +406,7 @@ function run(key){
   const v=document.getElementById('verdict-panel');
   setTimeout(()=>{
     v.className=`verdict ${sc.pass?'pass':'block'}`;
-    v.textContent=sc.pass?'✅ PASS — 四层推演全部通过，允许进入渲染管线':'❌ BLOCK — 推演失败，强制拦截并升级人工';
+    v.textContent=sc.pass?'✅ PASS — 四层推演全部通过，允许进入界面渲染':'❌ BLOCK — 推演失败，强制拦截并升级人工';
   },tiers.length*120+100);
 
   // 卡片渲染动画
@@ -443,7 +443,7 @@ function run(key){
     setTimeout(()=>{
       document.getElementById('block-overlay').classList.remove('hidden');
       document.getElementById('block-reason').innerHTML=
-        `<strong>违规层级：</strong>Four-Tier ${first.tier.toUpperCase()}<<br>
+        `<strong>违规层级：</strong>第 ${first.tier} 层<br>
          <strong>规则路径：</strong>${first.ref||'N/A'}<<br>
          <strong>拦截原因：</strong>${first.msg}<br><br>
          <small>阻断优于修正：不触发 LLM 自动重试，直接升级人工</small>`;
