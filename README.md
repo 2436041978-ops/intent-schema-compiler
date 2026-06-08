@@ -7,11 +7,17 @@
 
 ---
 
-## 在线体验（无需安装）
+## 在线体验
 
-👇 **浏览器直接打开，30 秒看懂约束显化**
+👉 **[点击体验约束显化 DEMO](https://2436041978-ops.github.io/intent-schema-compiler/demo/)**
 
-👉 **[https://2436041978-ops.github.io/intent-schema-compiler/demo/](https://2436041978-ops.github.io/intent-schema-compiler/demo/)**
+### 演示场景
+
+**✅ 合法输出：LLM 严格遵守语义契约**
+![合法输出截图](file:///Users/weiwen/Desktop/%E5%9B%BE%201%EF%BC%9A%E5%90%88%E6%B3%95%E8%BE%93%E5%87%BA%E9%80%9A%E8%BF%87.png)
+
+**❌ 违规输出：LLM 用"严重"替代了"critical"，被同义词防火墙拦截**
+![违规输出截图](file:///Users/weiwen/Desktop/%E5%9B%BE%202%EF%BC%9A%E8%BF%9D%E8%A7%84%E8%BE%93%E5%87%BA%E8%A2%AB%E6%8B%A6%E6%88%AA.png)
 
 ---
 
