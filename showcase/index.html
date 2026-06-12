@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schema-As-Code Showcase | AI时代设计意图的治理体系</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; background: #0B0D10; color: #E2E8F0; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* 自定义滚动条 */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #1E293B; }
+  ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+  /* 场景切换动画 */
+  .scene { display: none; animation: fadeIn 0.4s ease-out; }
+  .scene.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* 推演状态 */
+  .status-pass { background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34D399; }
+  .status-block { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #F87171; }
+  .status-warn { background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); color: #FBBF24; }
+
+  /* 代码高亮模拟 */
+  .code-yaml .key { color: #93C5FD; }
+  .code-yaml .string { color: #86EFAC; }
+  .code-yaml .comment { color: #64748B; }
+  .code-yaml .tag { color: #F472B6; }
+  .code-yaml .highlight-line { background: rgba(245, 158, 11, 0.15); display: block; margin: 0 -12px; padding: 0 12px; border-left: 3px solid #F59E0B; }
+
+  /* 工具Tab */
+  .tool-tab { transition: all 0.2s; cursor: pointer; }
+  .tool-tab:hover { background: rgba(59, 130, 246, 0.1); }
+  .tool-tab.active { background: rgba(59, 130, 246, 0.2); border-color: #3B82F6; color: #60A5FA; }
+
+  /* 卡片悬停 */
+  .hover-card { transition: all 0.2s; }
+  .hover-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+
+  /* 脉冲动画 */
+  .pulse-red { animation: pulseRed 2s infinite; }
+  @keyframes pulseRed { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 50% { box-shadow: 0 0 0 10px rgba(239,68,68,0); } }
+
+  .spinner { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+<base target="_blank">
+</head>
+<body class="min-h-screen">
+
+<!-- 顶部导航 -->
+<nav class="sticky top-0 z-50 bg-gray-900/80 backdrop-blur border-b border-gray-800">
+  <div class="max-w-7xl mx-auto px-4">
+    <div class="flex items-center justify-between h-14">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">S</div>
+        <div>
+          <h1 class="text-sm font-semibold text-white">Schema-As-Code Showcase</h1>
+          <p class="text-xs text-gray-500">AI时代设计意图的治理体系</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-1">
+        <button onclick="switchScene('cover')" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-blue-600/20 text-blue-400 border border-blue-600/30" data-scene="cover">封面</button>
+        <button onclick="switchScene('ops')" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-800" data-scene="ops">DesignOps</button>
+        <button onclick="switchScene('system')" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-800" data-scene="system">Design System</button>
+        <button onclick="switchScene('frontend')" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-800" data-scene="frontend">前端工程</button>
+        <button onclick="switchScene('infra')" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-800" data-scene="infra">基础设施</button>
+        <button onclick="switchScene('cross')" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-800" data-scene="cross">跨工具</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ==================== 封面页 ==================== -->
+<div id="scene-cover" class="scene active max-w-7xl mx-auto px-4 py-10">
+
+  <!-- Hero -->
+  <div class="text-center mb-12">
+    <h2 class="text-3xl font-bold text-white mb-3">当 AI 生成界面时，谁在守住设计意图？</h2>
+    <p class="text-gray-400 max-w-2xl mx-auto">Design-to-Code 工具解决了"怎么写"，Schema-As-Code 解决"不能写什么"。<br>所有 AI 生成界面的上游约束层。</p>
+  </div>
+
+  <!-- 商业对比卡片 -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+    <div class="hover-card bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-lg">📋</span>
+        <span class="text-xs font-semibold text-gray-300">DesignOps</span>
+      </div>
+      <div class="space-y-2">
+        <div class="text-xs text-gray-500 line-through">人工 @ 全员，开 3 场会，2 周同步</div>
+        <div class="text-xs text-emerald-400 font-medium">YAML Git Diff，自动编译，0.5 天</div>
+        <div class="mt-3 pt-3 border-t border-gray-800">
+          <span class="text-2xl font-bold text-white">4×</span>
+          <span class="text-xs text-gray-500 ml-1">效率提升</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hover-card bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-lg">🎨</span>
+        <span class="text-xs font-semibold text-gray-300">Design System</span>
+      </div>
+      <div class="space-y-2">
+        <div class="text-xs text-gray-500 line-through">走查 50 产品 × 500 页面，覆盖率 20%</div>
+        <div class="text-xs text-emerald-400 font-medium">机器推演覆盖率 100%</div>
+        <div class="mt-3 pt-3 border-t border-gray-800">
+          <span class="text-2xl font-bold text-white">100%</span>
+          <span class="text-xs text-gray-500 ml-1">覆盖率</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hover-card bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-lg">💻</span>
+        <span class="text-xs font-semibold text-gray-300">前端工程</span>
+      </div>
+      <div class="space-y-2">
+        <div class="text-xs text-gray-500 line-through">30% 时间修 AI 语义错误（Critical→严重）</div>
+        <div class="text-xs text-emerald-400 font-medium">生成前拦截，返工率降至 5%</div>
+        <div class="mt-3 pt-3 border-t border-gray-800">
+          <span class="text-2xl font-bold text-white">-83%</span>
+          <span class="text-xs text-gray-500 ml-1">返工率</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hover-card bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-lg">⚡</span>
+        <span class="text-xs font-semibold text-gray-300">研发效能</span>
+      </div>
+      <div class="space-y-2">
+        <div class="text-xs text-gray-500 line-through">5 个产品各管各，语义漂移占线上问题 15%</div>
+        <div class="text-xs text-emerald-400 font-medium">一套语义层全域共享，漂移趋近于 0</div>
+        <div class="mt-3 pt-3 border-t border-gray-800">
+          <span class="text-2xl font-bold text-white">O(1)</span>
+          <span class="text-xs text-gray-500 ml-1">维护成本</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 核心公式 -->
+  <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-6 mb-8">
+    <div class="flex items-center justify-center gap-4 text-sm">
+      <div class="text-center">
+        <div class="text-gray-400 mb-1">Design-to-Code</div>
+        <div class="text-white font-mono">形态层</div>
+        <div class="text-xs text-gray-500">长什么样 · 怎么写</div>
+      </div>
+      <div class="text-gray-600 text-xl">+</div>
+      <div class="text-center px-4 py-2 bg-blue-600/20 rounded-lg border border-blue-600/30">
+        <div class="text-blue-400 mb-1">Schema-As-Code</div>
+        <div class="text-white font-mono font-semibold">语义层</div>
+        <div class="text-xs text-blue-300/70">意味着什么 · 不能突破什么</div>
+      </div>
+      <div class="text-gray-600 text-xl">=</div>
+      <div class="text-center">
+        <div class="text-emerald-400 mb-1">AI 界面治理</div>
+        <div class="text-white font-mono">完整闭环</div>
+        <div class="text-xs text-gray-500">生成前约束 + 生成后观测</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 进入场景按钮 -->
+  <div class="text-center">
+    <button onclick="switchScene('ops')" class="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors">
+      进入场景演示 →
+    </button>
+  </div>
+</div>
+
+<!-- ==================== 场景模板：五栏布局 ==================== -->
+<!-- 每个场景共用此结构：YAML | JSON Schema | LLM输出 | 四层推演 | 界面渲染 -->
+
+<!-- 场景1：DesignOps -->
+<div id="scene-ops" class="scene max-w-7xl mx-auto px-4 py-6">
+  <div class="mb-4">
+    <h2 class="text-xl font-bold text-white">场景 1：DesignOps — 规范即代码，Diff 即通知</h2>
+    <p class="text-sm text-gray-400 mt-1">以前规范更新靠人肉广播，现在靠 Git Diff 自动编译。</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+    <!-- 栏1：YAML -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800 flex items-center gap-2">
+        <span class="text-xs font-semibold text-pink-400">YAML 协议</span>
+        <span class="text-xs text-gray-600">v1.0 → v1.1</span>
+      </div>
+      <div class="p-3 text-xs font-mono leading-relaxed overflow-auto max-h-96 code-yaml">
+        <div class="text-gray-500 mb-2"># v1.0 旧规则</div>
+        <div><span class="tag">synonym_firewall</span>:</div>
+        <div class="ml-2"><span class="key">prohibited</span>: [<span class="string">"严重"</span>]</div>
+        <div class="mt-3 text-gray-500 mb-2"># v1.1 新增（Git Diff 高亮）</div>
+        <div class="highlight-line"><span class="tag">synonym_firewall</span>:</div>
+        <div class="highlight-line ml-2"><span class="key">prohibited</span>: [<span class="string">"严重"</span>, <span class="string">"危急"</span>]</div>
+        <div class="highlight-line ml-2"><span class="key">context</span>: <span class="string">"system_alert"</span></div>
+        <div class="highlight-line ml-2"><span class="key">reason</span>: <span class="string">"与 P1 告警级别混淆"</span></div>
+        <div class="mt-3 text-gray-500"># 自动编译目标</div>
+        <div class="ml-2"><span class="key">compile_targets</span>:</div>
+        <div class="ml-4">- <span class="string">"product_a/prompt_prefix"</span></div>
+        <div class="ml-4">- <span class="string">"product_b/prompt_prefix"</span></div>
+        <div class="ml-4">- <span class="string">"product_c/eslint_rules"</span></div>
+      </div>
+    </div>
+
+    <!-- 栏2：JSON Schema -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-blue-400">JSON Schema</span>
+      </div>
+      <div class="p-3 text-xs font-mono leading-relaxed overflow-auto max-h-96">
+        <div>{</div>
+        <div class="ml-2"><span class="text-blue-400">"$schema"</span>: <span class="text-green-400">"..."</span>,</div>
+        <div class="ml-2"><span class="text-blue-400">"type"</span>: <span class="text-green-400">"object"</span>,</div>
+        <div class="ml-2"><span class="text-blue-400">"properties"</span>: {</div>
+        <div class="ml-4"><span class="text-blue-400">"alert_level"</span>: {</div>
+        <div class="ml-6"><span class="text-blue-400">"enum"</span>: [<span class="text-green-400">"Critical"</span>],</div>
+        <div class="ml-6"><span class="text-blue-400">"prohibited"</span>: [</div>
+        <div class="ml-8"><span class="text-green-400">"严重"</span>, <span class="text-green-400">"危急"</span></div>
+        <div class="ml-6">]</div>
+        <div class="ml-4">}</div>
+        <div class="ml-2">}</div>
+        <div>}</div>
+      </div>
+    </div>
+
+    <!-- 栏3：LLM输出 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-yellow-400">LLM 输出</span>
+      </div>
+      <div class="p-3 space-y-3">
+        <div>
+          <div class="text-xs text-gray-500 mb-1">v1.0 拦截范围</div>
+          <div class="bg-gray-800 rounded p-2 text-xs font-mono">
+            <span class="text-green-400">"Critical"</span> ✅<br>
+            <span class="text-red-400">"严重"</span> ❌ BLOCK
+          </div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500 mb-1">v1.1 新增拦截</div>
+          <div class="bg-gray-800 rounded p-2 text-xs font-mono">
+            <span class="text-green-400">"Critical"</span> ✅<br>
+            <span class="text-red-400">"严重"</span> ❌<br>
+            <span class="text-red-400">"危急"</span> ❌ <span class="text-yellow-400">NEW</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 栏4：四层推演 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-purple-400">四层推演</span>
+      </div>
+      <div class="p-3 space-y-2">
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">语法推演 PASS</div>
+          <div class="text-xs opacity-80">JSON 结构完整</div>
+        </div>
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">语义推演 PASS</div>
+          <div class="text-xs opacity-80">"Critical" 符合标准令牌</div>
+        </div>
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">安全推演 PASS</div>
+          <div class="text-xs opacity-80">无禁止模式命中</div>
+        </div>
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">美感推演 PASS</div>
+          <div class="text-xs opacity-80">信息密度合理</div>
+        </div>
+        <div class="mt-2 pt-2 border-t border-gray-800">
+          <div class="text-xs text-gray-500">版本检测</div>
+          <div class="text-xs text-emerald-400 mt-1">✓ 3/3 产品已同步 v1.1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 栏5：界面渲染 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-emerald-400">规范同步流水线</span>
+      </div>
+      <div class="p-3 space-y-3">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-pink-600/20 flex items-center justify-center text-xs">📝</div>
+          <div class="text-xs">
+            <div class="text-white">设计师提交 YAML</div>
+            <div class="text-gray-500">Git PR #142</div>
+          </div>
+        </div>
+        <div class="ml-3 w-px h-4 bg-gray-700"></div>
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-blue-600/20 flex items-center justify-center text-xs">⚙️</div>
+          <div class="text-xs">
+            <div class="text-white">CI 自动编译</div>
+            <div class="text-gray-500">YAML → JSON Schema → Prompt</div>
+          </div>
+        </div>
+        <div class="ml-3 w-px h-4 bg-gray-700"></div>
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded bg-emerald-600/20 flex items-center justify-center text-xs">🚀</div>
+          <div class="text-xs">
+            <div class="text-white">3 个产品自动更新</div>
+            <div class="text-gray-500">Product A/B/C</div>
+          </div>
+        </div>
+        <div class="mt-3 bg-gray-800 rounded p-2 text-xs text-center">
+          <span class="text-gray-400">以前：</span><span class="text-red-400">2 周 + 3 场会</span><br>
+          <span class="text-gray-400">现在：</span><span class="text-emerald-400">0.5 天 + 0 场会</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 场景2：Design System -->
+<div id="scene-system" class="scene max-w-7xl mx-auto px-4 py-6">
+  <div class="mb-4">
+    <h2 class="text-xl font-bold text-white">场景 2：Design System — Token 不只管颜色，还管场景</h2>
+    <p class="text-sm text-gray-400 mt-1">以前 Design Token 是视觉字典，现在 Semantic Token 是场景宪法。</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+    <!-- YAML -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-pink-400">YAML 协议</span>
+      </div>
+      <div class="p-3 text-xs font-mono leading-relaxed overflow-auto max-h-96 code-yaml">
+        <div><span class="tag">semantic_tokens</span>:</div>
+        <div class="ml-2"><span class="tag">status.critical</span>:</div>
+        <div class="ml-4"><span class="key">color_value</span>: <span class="string">"#FF4D4F"</span></div>
+        <div class="ml-4"><span class="key">semantic_domain</span>: <span class="string">"observational"</span></div>
+        <div class="ml-4"><span class="key">allowed_scenes</span>:</div>
+        <div class="ml-6">- <span class="string">"system_alert"</span></div>
+        <div class="ml-6">- <span class="string">"error_state"</span></div>
+        <div class="ml-4"><span class="key">prohibited_scenes</span>:</div>
+        <div class="ml-6">- <span class="string">"toast"</span></div>
+        <div class="ml-6">- <span class="string">"tooltip"</span></div>
+        <div class="ml-6">- <span class="string">"success_message"</span></div>
+        <div class="ml-4"><span class="key">llm_constraints</span>:</div>
+        <div class="ml-6">- <span class="string">"禁止在提示场景使用 status.critical"</span></div>
+      </div>
+    </div>
+
+    <!-- JSON Schema -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-blue-400">JSON Schema</span>
+      </div>
+      <div class="p-3 text-xs font-mono leading-relaxed overflow-auto max-h-96">
+        <div>{</div>
+        <div class="ml-2"><span class="text-blue-400">"token_id"</span>: <span class="text-green-400">"status.critical"</span>,</div>
+        <div class="ml-2"><span class="text-blue-400">"semantic_domain"</span>: {</div>
+        <div class="ml-4"><span class="text-blue-400">"type"</span>: <span class="text-green-400">"string"</span>,</div>
+        <div class="ml-4"><span class="text-blue-400">"enum"</span>: [<span class="text-green-400">"observational"</span>]</div>
+        <div class="ml-2">},</div>
+        <div class="ml-2"><span class="text-blue-400">"scene_validation"</span>: {</div>
+        <div class="ml-4"><span class="text-blue-400">"if_scene"</span>: <span class="text-green-400">"toast"</span>,</div>
+        <div class="ml-4"><span class="text-blue-400">"then"</span>: <span class="text-green-400">"BLOCK"</span>,</div>
+        <div class="ml-4"><span class="text-blue-400">"fallback"</span>: <span class="text-green-400">"status.warning"</span></div>
+        <div class="ml-2">}</div>
+        <div>}</div>
+      </div>
+    </div>
+
+    <!-- LLM输出 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-yellow-400">LLM 输出</span>
+      </div>
+      <div class="p-3 space-y-3">
+        <div>
+          <div class="text-xs text-gray-500 mb-1">场景 A：system_alert（合法）</div>
+          <div class="bg-gray-800 rounded p-2 text-xs font-mono">
+            <span class="text-blue-400">scene</span>: <span class="text-green-400">"system_alert"</span><br>
+            <span class="text-blue-400">color_token</span>: <span class="text-green-400">"status.critical"</span> <span class="text-emerald-400">✅</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500 mb-1">场景 B：toast（非法）</div>
+          <div class="bg-gray-800 rounded p-2 text-xs font-mono">
+            <span class="text-blue-400">scene</span>: <span class="text-green-400">"toast"</span><br>
+            <span class="text-blue-400">color_token</span>: <span class="text-red-400">"status.critical"</span> <span class="text-red-400">❌ BLOCK</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 四层推演 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-purple-400">四层推演</span>
+      </div>
+      <div class="p-3 space-y-2">
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">语法推演 PASS</div>
+          <div class="text-xs opacity-80">Token 引用格式正确</div>
+        </div>
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">语义推演 PASS</div>
+          <div class="text-xs opacity-80">场景 A 匹配 allowed_scenes</div>
+        </div>
+        <div class="status-block rounded p-2 text-xs">
+          <div class="font-semibold">语义推演 BLOCK</div>
+          <div class="text-xs opacity-80">场景 B 命中 prohibited_scenes</div>
+        </div>
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">安全推演 PASS</div>
+          <div class="text-xs opacity-80">无越权使用</div>
+        </div>
+        <div class="mt-2 pt-2 border-t border-gray-800 text-xs text-gray-500">
+          建议替换：<span class="text-yellow-400">status.warning</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 界面渲染 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-emerald-400">场景对比</span>
+      </div>
+      <div class="p-3 space-y-3">
+        <div class="bg-red-500/10 border border-red-500/30 rounded p-2">
+          <div class="text-xs text-red-300 mb-1">✅ system_alert</div>
+          <div class="bg-gray-800 rounded p-2">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full bg-red-500"></div>
+              <span class="text-xs text-white">系统故障</span>
+            </div>
+            <div class="text-xs text-gray-500 mt-1">使用 status.critical</div>
+          </div>
+        </div>
+        <div class="bg-yellow-500/10 border border-yellow-500/30 rounded p-2">
+          <div class="text-xs text-yellow-300 mb-1">🔄 toast（自动降级）</div>
+          <div class="bg-gray-800 rounded p-2">
+            <div class="flex items-center gap-2">
+              <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+              <span class="text-xs text-white">操作提示</span>
+            </div>
+            <div class="text-xs text-gray-500 mt-1">status.critical 被拦截</div>
+            <div class="text-xs text-gray-500">自动降级为 status.warning</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 场景3：前端工程 -->
+<div id="scene-frontend" class="scene max-w-7xl mx-auto px-4 py-6">
+  <div class="mb-4">
+    <h2 class="text-xl font-bold text-white">场景 3：前端工程 — 高危操作的语义锁</h2>
+    <p class="text-sm text-gray-400 mt-1">以前前端 30% 时间在修 AI 的语义错误，现在机器在生成前就拦住。</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+    <!-- YAML -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-pink-400">YAML 协议</span>
+      </div>
+      <div class="p-3 text-xs font-mono leading-relaxed overflow-auto max-h-96 code-yaml">
+        <div><span class="tag">human_ai_boundary</span>:</div>
+        <div class="ml-2"><span class="key">ai_prohibited</span>:</div>
+        <div class="ml-4">- <span class="string">"将高危操作按钮设计为普通主按钮样式"</span></div>
+        <div class="ml-4">- <span class="string">"直接执行删除操作而不显示二次确认"</span></div>
+        <div class="ml-2"><span class="key">required</span>:</div>
+        <div class="ml-4">- <span class="key">action_type</span>: <span class="string">"destructive"</span></div>
+        <div class="ml-6"><span class="key">must_include</span>:</div>
+        <div class="ml-8">- <span class="string">"二次确认弹窗"</span></div>
+        <div class="ml-8">- <span class="string">"操作后果说明"</span></div>
+        <div class="ml-6"><span class="key">visual_mapping</span>:</div>
+        <div class="ml-8"><span class="key">color_token</span>: <span class="string">"status.critical"</span></div>
+        <div class="ml-8"><span class="key">button_style</span>: <span class="string">"outline_danger"</span></div>
+      </div>
+    </div>
+
+    <!-- JSON Schema -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-blue-400">JSON Schema</span>
+      </div>
+      <div class="p-3 text-xs font-mono leading-relaxed overflow-auto max-h-96">
+        <div>{</div>
+        <div class="ml-2"><span class="text-blue-400">"component"</span>: <span class="text-green-400">"Button"</span>,</div>
+        <div class="ml-2"><span class="text-blue-400">"if"</span>: <span class="text-green-400">"action_type == destructive"</span>,</div>
+        <div class="ml-2"><span class="text-blue-400">"then"</span>: {</div>
+        <div class="ml-4"><span class="text-blue-400">"variant"</span>: {</div>
+        <div class="ml-6"><span class="text-blue-400">"enum"</span>: [<span class="text-green-400">"outline"</span>],</div>
+        <div class="ml-6"><span class="text-blue-400">"prohibited"</span>: [<span class="text-green-400">"contained"</span>]</div>
+        <div class="ml-4">},</div>
+        <div class="ml-4"><span class="text-blue-400">"color"</span>: <span class="text-green-400">"red"</span>,</div>
+        <div class="ml-4"><span class="text-blue-400">"confirm_dialog"</span>: <span class="text-green-400">"required"</span></div>
+        <div class="ml-2">}</div>
+        <div>}</div>
+      </div>
+    </div>
+
+    <!-- LLM输出 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-yellow-400">LLM 输出</span>
+      </div>
+      <div class="p-3 space-y-3">
+        <div>
+          <div class="text-xs text-gray-500 mb-1">无约束（默认生成）</div>
+          <div class="bg-gray-800 rounded p-2 text-xs font-mono text-red-400">
+            &lt;Button variant="contained"&gt;确认&lt;/Button&gt;<br>
+            <span class="text-gray-500">// 蓝色实心，无二次确认</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500 mb-1">有约束（拦截后重写）</div>
+          <div class="bg-gray-800 rounded p-2 text-xs font-mono text-emerald-400">
+            &lt;Button variant="outline" color="danger"&gt;<br>
+            &nbsp;&nbsp;确认删除账户<br>
+            &lt;/Button&gt;<br>
+            &lt;ConfirmDialog /&gt;<br>
+            <span class="text-gray-500">// 红色描边 + 二次确认</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 四层推演 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-purple-400">四层推演</span>
+      </div>
+      <div class="p-3 space-y-2">
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">语法推演 PASS</div>
+          <div class="text-xs opacity-80">组件结构完整</div>
+        </div>
+        <div class="status-block rounded p-2 text-xs">
+          <div class="font-semibold">语义推演 BLOCK</div>
+          <div class="text-xs opacity-80">variant="contained" 违反 outline_danger 约束</div>
+        </div>
+        <div class="status-block rounded p-2 text-xs">
+          <div class="font-semibold">安全推演 BLOCK</div>
+          <div class="text-xs opacity-80">缺少 ConfirmDialog 子组件</div>
+        </div>
+        <div class="mt-2 pt-2 border-t border-gray-800 text-xs">
+          <div class="text-gray-500">自动修复建议：</div>
+          <div class="text-emerald-400 mt-1">1. 替换 variant="outline"</div>
+          <div class="text-emerald-400">2. 插入 &lt;ConfirmDialog /&gt;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 界面渲染 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-emerald-400">前后对比</span>
+      </div>
+      <div class="p-3 space-y-3">
+        <div class="border border-red-500/30 rounded p-2">
+          <div class="text-xs text-red-400 mb-2">❌ 无约束（危险）</div>
+          <div class="bg-gray-800 rounded p-3">
+            <div class="text-xs text-white mb-2">确认删除账户？</div>
+            <div class="flex gap-2">
+              <button class="px-3 py-1 bg-gray-700 rounded text-xs text-gray-300">取消</button>
+              <button class="px-3 py-1 bg-blue-600 rounded text-xs text-white">确认</button>
+            </div>
+          </div>
+        </div>
+        <div class="border border-emerald-500/30 rounded p-2">
+          <div class="text-xs text-emerald-400 mb-2">✅ 有约束（安全）</div>
+          <div class="bg-gray-800 rounded p-3">
+            <div class="text-xs text-red-300 mb-2">⚠️ 此操作不可恢复</div>
+            <div class="text-xs text-white mb-2">确认删除账户？</div>
+            <div class="bg-gray-900 rounded p-2 mb-2">
+              <input class="w-full bg-transparent text-xs text-gray-400 outline-none" placeholder="请输入账户名确认" readonly>
+            </div>
+            <div class="flex gap-2">
+              <button class="px-3 py-1 bg-gray-700 rounded text-xs text-gray-300">取消</button>
+              <button class="px-3 py-1 border border-red-500 text-red-400 rounded text-xs">确认删除账户</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 场景4：基础设施 -->
+<div id="scene-infra" class="scene max-w-7xl mx-auto px-4 py-6">
+  <div class="mb-4">
+    <h2 class="text-xl font-bold text-white">场景 4：基础设施 — 错误状态分级</h2>
+    <p class="text-sm text-gray-400 mt-1">以前 ChatGPT 四种错误共用红色，用户只能靠猜。现在语义分级，颜色是语义的结果。</p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-5 gap-3">
+    <!-- YAML -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-pink-400">YAML 协议</span>
+      </div>
+      <div class="p-3 text-xs font-mono leading-relaxed overflow-auto max-h-96 code-yaml">
+        <div><span class="tag">semantic_tokens</span>:</div>
+        <div class="ml-2"><span class="tag">error_severity</span>:</div>
+        <div class="ml-4"><span class="tag">fatal</span>:</div>
+        <div class="ml-6"><span class="key">visual</span>: { <span class="key">color</span>: <span class="string">"status.critical"</span>, <span class="key">motion</span>: <span class="string">"pulse.red"</span> }</div>
+        <div class="ml-6"><span class="key">action</span>: [<span class="string">"refresh_page"</span>, <span class="string">"export_history"</span>]</div>
+        <div class="ml-4"><span class="tag">transient</span>:</div>
+        <div class="ml-6"><span class="key">visual</span>: { <span class="key">color</span>: <span class="string">"status.neutral"</span>, <span class="key">motion</span>: <span class="string">"spinner"</span> }</div>
+        <div class="ml-6"><span class="key">action</span>: [<span class="string">"wait_auto_retry"</span>]</div>
+        <div class="ml-4"><span class="tag">retryable</span>:</div>
+        <div class="ml-6"><span class="key">visual</span>: { <span class="key">color</span>: <span class="string">"status.warning"</span> }</div>
+        <div class="ml-6"><span class="key">action</span>: [<span class="string">"upgrade_plan"</span>]</div>
+        <div class="ml-4"><span class="tag">degraded</span>:</div>
+        <div class="ml-6"><span class="key">visual</span>: { <span class="key">color</span>: <span class="string">"status.info"</span> }</div>
+        <div class="ml-6"><span class="key">action</span>: [<span class="string">"continue_generation"</span>]</div>
+      </div>
+    </div>
+
+    <!-- JSON Schema -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-blue-400">JSON Schema</span>
+      </div>
+      <div class="p-3 text-xs font-mono leading-relaxed overflow-auto max-h-96">
+        <div>{</div>
+        <div class="ml-2"><span class="text-blue-400">"error_severity"</span>: {</div>
+        <div class="ml-4"><span class="text-blue-400">"type"</span>: <span class="text-green-400">"string"</span>,</div>
+        <div class="ml-4"><span class="text-blue-400">"enum"</span>: [</div>
+        <div class="ml-6"><span class="text-green-400">"fatal"</span>,</div>
+        <div class="ml-6"><span class="text-green-400">"transient"</span>,</div>
+        <div class="ml-6"><span class="text-green-400">"retryable"</span>,</div>
+        <div class="ml-6"><span class="text-green-400">"degraded"</span></div>
+        <div class="ml-4">],</div>
+        <div class="ml-4"><span class="text-blue-400">"required_mapping"</span>: <span class="text-green-400">"visual + user_action"</span></div>
+        <div class="ml-2">}</div>
+        <div>}</div>
+      </div>
+    </div>
+
+    <!-- LLM输出 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-yellow-400">LLM 输出</span>
+      </div>
+      <div class="p-3 space-y-2">
+        <div class="bg-gray-800 rounded p-2 text-xs font-mono">
+          <span class="text-blue-400">input</span>: <span class="text-green-400">"Error in message stream"</span><br>
+          <span class="text-blue-400">mapped</span>: <span class="text-red-400">"fatal"</span>
+        </div>
+        <div class="bg-gray-800 rounded p-2 text-xs font-mono">
+          <span class="text-blue-400">input</span>: <span class="text-green-400">"network error"</span><br>
+          <span class="text-blue-400">mapped</span>: <span class="text-gray-400">"transient"</span>
+        </div>
+        <div class="bg-gray-800 rounded p-2 text-xs font-mono">
+          <span class="text-blue-400">input</span>: <span class="text-green-400">"Too many requests"</span><br>
+          <span class="text-blue-400">mapped</span>: <span class="text-yellow-400">"retryable"</span>
+        </div>
+        <div class="bg-gray-800 rounded p-2 text-xs font-mono">
+          <span class="text-blue-400">input</span>: <span class="text-green-400">"Something went wrong"</span><br>
+          <span class="text-blue-400">mapped</span>: <span class="text-blue-400">"degraded"</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 四层推演 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-purple-400">四层推演</span>
+      </div>
+      <div class="p-3 space-y-2">
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">语法推演 PASS</div>
+          <div class="text-xs opacity-80">4 种输入均匹配枚举</div>
+        </div>
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">语义推演 PASS</div>
+          <div class="text-xs opacity-80">文案→severity 映射正确</div>
+        </div>
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">安全推演 PASS</div>
+          <div class="text-xs opacity-80">每种 severity 均附带 user_action</div>
+        </div>
+        <div class="status-pass rounded p-2 text-xs">
+          <div class="font-semibold">美感推演 PASS</div>
+          <div class="text-xs opacity-80">视觉层级与后果匹配</div>
+        </div>
+        <div class="mt-2 pt-2 border-t border-gray-800 text-xs text-emerald-400">
+          ✅ 全部通过，进入渲染
+        </div>
+      </div>
+    </div>
+
+    <!-- 界面渲染 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-emerald-400">语义分级渲染</span>
+      </div>
+      <div class="p-3 space-y-2">
+        <div class="bg-red-500/10 border border-red-500/30 rounded p-2 pulse-red">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-bold text-red-400">FATAL</span>
+            <span class="text-xs text-red-300">消息流中断</span>
+          </div>
+          <div class="text-xs text-gray-400">建议刷新页面或导出历史</div>
+        </div>
+        <div class="bg-gray-700/30 border border-gray-600/30 rounded p-2">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-3 h-3 border-2 border-gray-500 border-t-transparent rounded-full spinner"></div>
+            <span class="text-xs font-bold text-gray-400">TRANSIENT</span>
+            <span class="text-xs text-gray-300">网络不稳定</span>
+          </div>
+          <div class="text-xs text-gray-500">正在自动重试，无需操作</div>
+        </div>
+        <div class="bg-yellow-500/10 border border-yellow-500/30 rounded p-2">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-bold text-yellow-400">RETRYABLE</span>
+            <span class="text-xs text-yellow-300">请求频率已达上限</span>
+          </div>
+          <div class="text-xs text-gray-400">42 分钟后恢复，或升级 Plus</div>
+        </div>
+        <div class="bg-blue-500/10 border border-blue-500/30 rounded p-2">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-xs font-bold text-blue-400">DEGRADED</span>
+            <span class="text-xs text-blue-300">部分响应失败</span>
+          </div>
+          <div class="text-xs text-gray-400">已生成内容仍有效，可继续</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 场景5：跨工具消费 -->
+<div id="scene-cross" class="scene max-w-7xl mx-auto px-4 py-6">
+  <div class="mb-4">
+    <h2 class="text-xl font-bold text-white">场景 5：跨工具消费 — 同一个 YAML，三种工具</h2>
+    <p class="text-sm text-gray-400 mt-1">Schema-As-Code 是上游约束协议，不绑定任何 Design-to-Code 工具。</p>
+  </div>
+
+  <!-- 固定 YAML 展示区 -->
+  <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4">
+    <div class="text-xs font-semibold text-pink-400 mb-2">📋 源 YAML 协议（固定）</div>
+    <div class="font-mono text-xs text-gray-300 leading-relaxed code-yaml">
+      <div><span class="tag">intent_id</span>: <span class="string">"DEL-001"</span></div>
+      <div><span class="tag">semantic_domain</span>: <span class="string">"transactional"</span></div>
+      <div><span class="tag">semantic_tokens</span>:</div>
+      <div class="ml-2"><span class="tag">destructive_action</span>:</div>
+      <div class="ml-4"><span class="key">color_token</span>: <span class="string">"status.critical"</span></div>
+      <div class="ml-4"><span class="key">button_style</span>: <span class="string">"outline_danger"</span></div>
+      <div class="ml-4"><span class="key">confirmation_step</span>: <span class="string">true</span></div>
+    </div>
+  </div>
+
+  <!-- 工具切换 Tab -->
+  <div class="flex gap-2 mb-4">
+    <button onclick="switchTool('claude')" class="tool-tab active px-4 py-2 rounded-lg border border-gray-700 text-xs font-medium" data-tool="claude">🔧 Claude Code</button>
+    <button onclick="switchTool('v0')" class="tool-tab px-4 py-2 rounded-lg border border-gray-700 text-xs font-medium text-gray-400" data-tool="v0">⚡ v0 by Vercel</button>
+    <button onclick="switchTool('devui')" class="tool-tab px-4 py-2 rounded-lg border border-gray-700 text-xs font-medium text-gray-400" data-tool="devui">🔷 DevUI HMC</button>
+    <button onclick="switchTool('figma')" class="tool-tab px-4 py-2 rounded-lg border border-gray-700 text-xs font-medium text-gray-400" data-tool="figma">🎨 Figma MCP</button>
+  </div>
+
+  <!-- 工具内容区 -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <!-- 编译产物 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-blue-400">编译产物</span>
+      </div>
+      <div class="p-4">
+        <!-- Claude Code -->
+        <div id="tool-claude" class="tool-content">
+          <div class="text-xs text-gray-500 mb-2">Prompt 前缀（自动注入 System Prompt）</div>
+          <div class="bg-gray-800 rounded-lg p-3 text-xs font-mono text-gray-300 leading-relaxed">
+            <div class="text-gray-500">## 语义约束（来自 intent/DEL-001.yaml）</div>
+            <div class="mt-2">当生成删除账户相关代码时：</div>
+            <div class="ml-2">- 按钮必须使用 <span class="text-red-400">outline_danger</span> 样式</div>
+            <div class="ml-2">- 必须包含二次确认弹窗</div>
+            <div class="ml-2">- 禁止生成 <span class="text-red-400">contained</span> 主按钮</div>
+            <div class="mt-2 text-gray-500">injection_point: system_prompt</div>
+            <div class="text-gray-500">priority: high</div>
+          </div>
+        </div>
+        <!-- v0 -->
+        <div id="tool-v0" class="tool-content hidden">
+          <div class="text-xs text-gray-500 mb-2">组件生成规则（编译为 v0 Prompt 规则）</div>
+          <div class="bg-gray-800 rounded-lg p-3 text-xs font-mono text-gray-300 leading-relaxed">
+            <div>{</div>
+            <div class="ml-2"><span class="text-blue-400">"match"</span>: <span class="text-green-400">"action_type == 'destructive'"</span>,</div>
+            <div class="ml-2"><span class="text-blue-400">"component"</span>: <span class="text-green-400">"Button"</span>,</div>
+            <div class="ml-2"><span class="text-blue-400">"props"</span>: {</div>
+            <div class="ml-4"><span class="text-blue-400">"variant"</span>: <span class="text-green-400">"outline"</span>,</div>
+            <div class="ml-4"><span class="text-blue-400">"color"</span>: <span class="text-green-400">"red"</span></div>
+            <div class="ml-2">},</div>
+            <div class="ml-2"><span class="text-blue-400">"required_children"</span>: [<span class="text-green-400">"ConfirmDialog"</span>]</div>
+            <div>}</div>
+          </div>
+        </div>
+        <!-- DevUI -->
+        <div id="tool-devui" class="tool-content hidden">
+          <div class="text-xs text-gray-500 mb-2">Skill 配置（vue-devui-practices）</div>
+          <div class="bg-gray-800 rounded-lg p-3 text-xs font-mono text-gray-300 leading-relaxed code-yaml">
+            <div><span class="tag">skill_name</span>: <span class="string">"vue-devui-practices"</span></div>
+            <div><span class="tag">mapping</span>:</div>
+            <div class="ml-2"><span class="tag">destructive_action</span>:</div>
+            <div class="ml-4"><span class="key">component</span>: <span class="string">"d-button"</span></div>
+            <div class="ml-4"><span class="key">props</span>:</div>
+            <div class="ml-6"><span class="key">type</span>: <span class="string">"danger"</span></div>
+            <div class="ml-6"><span class="key">outline</span>: <span class="string">true</span></div>
+            <div class="ml-4"><span class="key">required_modals</span>: [<span class="string">"d-modal[confirm]"</span>]</div>
+            <div class="mt-2"><span class="tag">validation</span>:</div>
+            <div class="ml-2"><span class="key">if</span>: <span class="string">"LLM_output.contains('&lt;d-button type="primary"&gt;')"</span></div>
+            <div class="ml-2"><span class="key">then</span>: <span class="string">"BLOCK"</span></div>
+          </div>
+        </div>
+        <!-- Figma -->
+        <div id="tool-figma" class="tool-content hidden">
+          <div class="text-xs text-gray-500 mb-2">设计 Lint 规则（Figma 插件）</div>
+          <div class="bg-gray-800 rounded-lg p-3 text-xs font-mono text-gray-300 leading-relaxed">
+            <div>{</div>
+            <div class="ml-2"><span class="text-blue-400">"node_type"</span>: <span class="text-green-400">"BUTTON"</span>,</div>
+            <div class="ml-2"><span class="text-blue-400">"if"</span>: <span class="text-green-400">"label.contains('删除') && style != 'outline_danger'"</span>,</div>
+            <div class="ml-2"><span class="text-blue-400">"severity"</span>: <span class="text-green-400">"ERROR"</span>,</div>
+            <div class="ml-2"><span class="text-blue-400">"message"</span>: <span class="text-green-400">"删除按钮必须使用 outline_danger 样式"</span>,</div>
+            <div class="ml-2"><span class="text-blue-400">"fix"</span>: <span class="text-green-400">"auto_replace_style('outline_danger')"</span></div>
+            <div>}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 推演拦截 -->
+    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+      <div class="bg-gray-800/50 px-3 py-2 border-b border-gray-800">
+        <span class="text-xs font-semibold text-purple-400">推演拦截演示</span>
+      </div>
+      <div class="p-4">
+        <!-- Claude Code -->
+        <div id="preview-claude" class="tool-content">
+          <div class="text-xs text-gray-500 mb-2">模拟 IDE 终端</div>
+          <div class="bg-black rounded-lg p-3 font-mono text-xs">
+            <div class="text-gray-500">$ claude generate delete-account-modal</div>
+            <div class="mt-2 text-yellow-400">⚠️ 语义约束拦截</div>
+            <div class="text-red-400">[BLOCK] variant="contained" 违反 outline_danger 约束</div>
+            <div class="text-red-400">[BLOCK] 缺少 ConfirmDialog 子组件</div>
+            <div class="mt-2 text-emerald-400">✅ 已自动修复：</div>
+            <div class="text-emerald-400">  → 替换为 variant="outline"</div>
+            <div class="text-emerald-400">  → 插入 &lt;ConfirmDialog /&gt;</div>
+          </div>
+        </div>
+        <!-- v0 -->
+        <div id="preview-v0" class="tool-content hidden">
+          <div class="text-xs text-gray-500 mb-2">模拟 v0 生成预览</div>
+          <div class="bg-gray-800 rounded-lg p-3">
+            <div class="relative">
+              <div class="text-xs text-white mb-2">删除账户</div>
+              <div class="flex gap-2">
+                <button class="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">取消</button>
+                <button class="px-2 py-1 bg-blue-600 rounded text-xs text-white">确认</button>
+              </div>
+              <div class="absolute inset-0 bg-red-500/20 border-2 border-red-500 rounded flex items-center justify-center">
+                <span class="text-xs text-red-400 font-bold bg-black/80 px-2 py-1 rounded">❌ 违反语义约束</span>
+              </div>
+            </div>
+            <div class="mt-3 text-xs text-emerald-400">✅ 修复后：红色描边 + 二次确认</div>
+          </div>
+        </div>
+        <!-- DevUI -->
+        <div id="preview-devui" class="tool-content hidden">
+          <div class="text-xs text-gray-500 mb-2">模拟 DevUI 组件文档</div>
+          <div class="bg-gray-800 rounded-lg p-3 font-mono text-xs">
+            <div class="text-gray-400">&lt;d-button type="primary"&gt;删除&lt;/d-button&gt;</div>
+            <div class="mt-1 text-red-400">↑ [BLOCK] 高危操作禁止使用 primary</div>
+            <div class="mt-3 text-emerald-400">&lt;d-button type="danger" outline&gt;</div>
+            <div class="text-emerald-400">  删除账户</div>
+            <div class="text-emerald-400">&lt;/d-button&gt;</div>
+            <div class="text-emerald-400">&lt;d-modal confirm /&gt;</div>
+            <div class="mt-1 text-emerald-400">↑ ✅ 合规</div>
+          </div>
+        </div>
+        <!-- Figma -->
+        <div id="preview-figma" class="tool-content hidden">
+          <div class="text-xs text-gray-500 mb-2">模拟 Figma 插件 Lint</div>
+          <div class="bg-gray-800 rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-4 h-4 bg-blue-600 rounded"></div>
+              <span class="text-xs text-white">Button "确认删除"</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-red-400">
+              <span>❌</span>
+              <span>必须使用 outline_danger 样式</span>
+            </div>
+            <div class="mt-2 text-xs text-emerald-400">🔧 一键修复：替换为 outline_danger</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 text-center text-xs text-gray-500">
+    不管你的团队用 Claude Code、v0 还是 DevUI HMC，语义约束在生成前统一生效。
+  </div>
+</div>
+
+<!-- 底部 -->
+<div class="max-w-7xl mx-auto px-4 py-8 text-center text-xs text-gray-600 border-t border-gray-800 mt-8">
+  <div class="mb-2">
+    <a href="https://github.com/2436041978-ops/intent-schema-compiler" class="text-blue-400 hover:text-blue-300">GitHub</a>
+    <span class="mx-2">·</span>
+    <a href="/intent-schema-compiler/demo/" class="text-blue-400 hover:text-blue-300">原 DEMO</a>
+    <span class="mx-2">·</span>
+    <span>Schema-As-Code 商业全景演示</span>
+  </div>
+  <div>基于公开界面观察还原 · 体验架构视角</div>
+</div>
+
+<script>
+// 场景切换
+function switchScene(sceneId) {
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+  document.getElementById('scene-' + sceneId).classList.add('active');
+
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.remove('bg-blue-600/20', 'text-blue-400', 'border', 'border-blue-600/30');
+    b.classList.add('text-gray-400');
+  });
+  const activeBtn = document.querySelector('.nav-btn[data-scene="' + sceneId + '"]');
+  if (activeBtn) {
+    activeBtn.classList.remove('text-gray-400');
+    activeBtn.classList.add('bg-blue-600/20', 'text-blue-400', 'border', 'border-blue-600/30');
+  }
+}
+
+// 工具切换（跨工具场景）
+function switchTool(toolId) {
+  document.querySelectorAll('.tool-content').forEach(c => c.classList.add('hidden'));
+  document.getElementById('tool-' + toolId).classList.remove('hidden');
+  document.getElementById('preview-' + toolId).classList.remove('hidden');
+
+  document.querySelectorAll('.tool-tab').forEach(t => {
+    t.classList.remove('active', 'text-blue-400');
+    t.classList.add('text-gray-400');
+  });
+  const activeTab = document.querySelector('.tool-tab[data-tool="' + toolId + '"]');
+  if (activeTab) {
+    activeTab.classList.add('active', 'text-blue-400');
+    activeTab.classList.remove('text-gray-400');
+  }
+}
+
+// 默认显示封面
+switchScene('cover');
+</script>
+
+</body>
+</html>
