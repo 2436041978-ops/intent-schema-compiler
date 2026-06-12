@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schema-As-Code Demo | 四层推演引擎</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="demo-header">
+  <div>
+    <h1>Schema-As-Code Demo</h1>
+    <p>四层推演引擎 · 告警卡片语义校验</p>
+  </div>
+  <div class="badge">参考实现 · 可交互验证</div>
+</header>
+
+<main class="demo-main">
+
+  <!-- Input Section -->
+  <div class="input-section">
+    <h3>🔧 输入配置</h3>
+    <div class="input-group">
+      <label>告警级别</label>
+      <select id="alertLevel">
+        <option value="Critical">Critical</option>
+        <option value="严重">严重</option>
+        <option value="危急">危急</option>
+        <option value="紧急">紧急</option>
+        <option value="Warning">Warning</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label>根因描述</label>
+      <input type="text" id="rootCause" value="CPU 使用率超过阈值，导致服务响应延迟" />
+    </div>
+    <div class="input-group">
+      <label>置信度</label>
+      <input type="number" id="confidence" value="0.85" min="0" max="1" step="0.01" />
+    </div>
+    <button class="btn-run" onclick="runValidation()">▶ 运行四层推演</button>
+  </div>
+
+  <!-- Five Column Result -->
+  <div class="section-title">推演结果</div>
+  <div class="five-col">
+
+    <!-- Col 1: YAML Protocol -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="dot" style="background: #7dd3fc;"></span>
+        YAML 协议
+      </div>
+      <div class="panel-body">
+        <div class="yaml-code">
+<span class="yaml-key">intent_id:</span> <span class="yaml-string">"ALERT-001"</span>
+<span class="yaml-key">semantic_domain:</span> <span class="yaml-string">"observational"</span>
+<span class="yaml-key">immutable_boundaries:</span>
+  <span class="yaml-key">- boundary_type:</span> <span class="yaml-string">"safety"</span>
+    <span class="yaml-key">constraint_rule_ref:</span> <span class="yaml-string">"rules/alert-severity.yaml"</span>
+    <span class="yaml-key">violation_action:</span> <span class="yaml-string">"block"</span>
+
+<span class="yaml-key">semantic_tokens:</span>
+  <span class="yaml-key">alert_level:</span>
+    <span class="yaml-key">Critical:</span>
+      <span class="yaml-key">description:</span> <span class="yaml-string">"系统级故障，需立即响应"</span>
+      <span class="yaml-key">visual_mapping:</span>
+        <span class="yaml-key">color_token:</span> <span class="yaml-string">"status.critical"</span>
+        <span class="yaml-key">motion_token:</span> <span class="yaml-string">"pulse.red.urgent"</span>
+        <span class="yaml-key">icon_token:</span> <span class="yaml-string">"alert.octagon"</span>
+      <span class="yaml-key">llm_constraints:</span>
+        <span class="yaml-key">-</span> <span class="yaml-string">"禁止降级为严重/危急/紧急"</span>
+        <span class="yaml-key">-</span> <span class="yaml-string">"必须提供恢复路径"</span>
+
+<span class="yaml-key">synonym_firewall:</span>
+  <span class="yaml-key">prohibited:</span>
+    <span class="yaml-key">- term:</span> <span class="yaml-string">"严重"</span>
+      <span class="yaml-key">standard_token:</span> <span class="yaml-string">"Critical"</span>
+      <span class="yaml-key">context:</span> <span class="yaml-string">"system_alert"</span>
+      <span class="yaml-key">reason:</span> <span class="yaml-string">"情绪权重降级"</span>
+    <span class="yaml-key">- term:</span> <span class="yaml-string">"危急"</span>
+      <span class="yaml-key">standard_token:</span> <span class="yaml-string">"Critical"</span>
+      <span class="yaml-key">context:</span> <span class="yaml-string">"system_alert"</span>
+      <span class="yaml-key">reason:</span> <span class="yaml-string">"与 P1 告警级别混淆"</span>
+    <span class="yaml-key">- term:</span> <span class="yaml-string">"紧急"</span>
+      <span class="yaml-key">standard_token:</span> <span class="yaml-string">"Critical"</span>
+      <span class="yaml-key">context:</span> <span class="yaml-string">"system_alert"</span>
+      <span class="yaml-key">reason:</span> <span class="yaml-string">"非标准运维术语"</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Col 2: JSON Schema -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="dot" style="background: #93c5fd;"></span>
+        JSON Schema
+      </div>
+      <div class="panel-body">
+        <div class="json-code" id="jsonSchemaOutput">
+{
+  <span class="json-key">"$schema"</span>: <span class="json-string">"http://json-schema.org/draft-07/schema#"</span>,
+  <span class="json-key">"title"</span>: <span class="json-string">"AlertLevelConstraint"</span>,
+  <span class="json-key">"type"</span>: <span class="json-string">"object"</span>,
+  <span class="json-key">"properties"</span>: {
+    <span class="json-key">"alert_level"</span>: {
+      <span class="json-key">"type"</span>: <span class="json-string">"string"</span>,
+      <span class="json-key">"enum"</span>: [<span class="json-string">"Critical"</span>, <span class="json-string">"Warning"</span>, <span class="json-string">"Info"</span>],
+      <span class="json-key">"not"</span>: {
+        <span class="json-key">"enum"</span>: [<span class="json-string">"严重"</span>, <span class="json-string">"危急"</span>, <span class="json-string">"紧急"</span>]
+      }
+    },
+    <span class="json-key">"context"</span>: { <span class="json-key">"const"</span>: <span class="json-string">"system_alert"</span> },
+    <span class="json-key">"confidence_score"</span>: {
+      <span class="json-key">"type"</span>: <span class="json-string">"number"</span>,
+      <span class="json-key">"minimum"</span>: <span class="json-number">0</span>,
+      <span class="json-key">"maximum"</span>: <span class="json-number">1</span>
+    }
+  },
+  <span class="json-key">"required"</span>: [<span class="json-string">"alert_level"</span>, <span class="json-string">"context"</span>]
+}
+        </div>
+      </div>
+    </div>
+
+    <!-- Col 3: LLM Output -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="dot" style="background: #fbbf24;"></span>
+        LLM 输出
+      </div>
+      <div class="panel-body">
+        <div id="llmOutput" style="font-family: 'Menlo', monospace; font-size: 11px; line-height: 1.8; color: #ccc;">
+{
+  "alert_level": "Critical",
+  "root_cause": "CPU 使用率超过阈值，导致服务响应延迟",
+  "confidence_score": 0.85
+}
+        </div>
+        <div id="llmStatus" style="margin-top: 12px; font-size: 11px; color: #10b981;">
+          ✅ 合规输出
+        </div>
+      </div>
+    </div>
+
+    <!-- Col 4: Four Layers Validation -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="dot" style="background: #f87171;"></span>
+        四层推演
+      </div>
+      <div class="panel-body" id="validationResult">
+        <div class="val-result pass">
+          <div style="font-weight:600; margin-bottom:6px;">✅ PASS</div>
+          <div style="font-size:11px; opacity:0.9;">所有推演层通过</div>
+        </div>
+        <div class="val-layer">
+          <span class="val-layer-name">语法推演</span>
+          <span class="val-layer-status pass">✓ PASS</span>
+        </div>
+        <div class="val-layer-detail">JSON 结构完整，字段类型正确</div>
+        <div class="val-layer">
+          <span class="val-layer-name">语义推演</span>
+          <span class="val-layer-status pass">✓ PASS</span>
+        </div>
+        <div class="val-layer-detail">alert_level 匹配标准令牌 Critical</div>
+        <div class="val-layer">
+          <span class="val-layer-name">安全推演</span>
+          <span class="val-layer-status pass">✓ PASS</span>
+        </div>
+        <div class="val-layer-detail">无禁止模式，无越界行为</div>
+        <div class="val-layer">
+          <span class="val-layer-name">美感推演</span>
+          <span class="val-layer-status pass">✓ PASS</span>
+        </div>
+        <div class="val-layer-detail">信息密度正常，文案长度合理</div>
+      </div>
+    </div>
+
+    <!-- Col 5: UI Render -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="dot" style="background: #34d399;"></span>
+        界面渲染
+      </div>
+      <div class="panel-body">
+        <div class="ui-preview" id="uiRender">
+          <div class="alert-card alert-critical pulse-red">
+            <span class="alert-icon">🚨</span>
+            <div class="alert-content">
+              <div class="alert-title">Critical · 系统告警</div>
+              <div class="alert-desc">CPU 使用率超过阈值，导致服务响应延迟</div>
+              <div style="margin-top: 8px; font-size: 11px; color: #fca5a5;">置信度: 85%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Description -->
+  <div style="background: #111; border: 1px solid #222; border-radius: 10px; padding: 24px; margin-top: 16px;">
+    <div style="font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 12px;">📋 推演说明</div>
+    <div style="font-size: 12px; color: #888; line-height: 1.8;">
+      <p style="margin-bottom: 8px;"><strong style="color: #aaa;">语法推演：</strong>校验 JSON 结构完整性、字段类型、必填项。</p>
+      <p style="margin-bottom: 8px;"><strong style="color: #aaa;">语义推演：</strong>校验 alert_level 是否匹配标准语义令牌，检测同义词替换（如"严重"替代"Critical"）。</p>
+      <p style="margin-bottom: 8px;"><strong style="color: #aaa;">安全推演：</strong>校验是否包含禁止模式、是否越界（如缺少恢复路径）。</p>
+      <p><strong style="color: #aaa;">美感推演：</strong>校验信息密度、文案长度、视觉层级合理性。</p>
+    </div>
+  </div>
+
+</main>
+
+<footer class="demo-footer">
+  <p>
+    Schema-As-Code 参考实现 · 
+    <a href="https://github.com/2436041978-ops/intent-schema-compiler" target="_blank">GitHub</a> · 
+    <a href="../showcase/">查看商业全景 Showcase →</a>
+  </p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
