@@ -373,20 +373,160 @@
   <!-- ==================== SCENE 5: Cross Tool ==================== -->
   <div id="scene-cross" class="scene-container">
     <div class="scene-title">场景 5：跨工具消费 — Intent Schema Interface</div>
-    <div class="scene-desc">同一个 YAML 语义契约，自动编译为 Claude Code / v0 / DevUI HMC / Figma MCP 的专属约束格式。</div>
+    <div class="scene-desc">Schema-As-Code 是所有 Design-to-Code 工具的"上游约束层"。同一份 YAML 语义契约，自动编译为不同工具的专属约束格式。</div>
 
     <div style="padding: 24px 48px;">
-      <div style="background: #111; border: 1px solid #222; border-radius: 10px; padding: 20px; margin-bottom: 20px;">
-        <div style="font-size: 12px; font-weight: 600; color: #aaa; margin-bottom: 12px;">YAML 输入（通用语义契约）</div>
-        <div id="yaml-cross" class="yaml-code"></div>
+
+      <!-- 顶部说明 -->
+      <div style="background: #111; border: 1px solid #222; border-radius: 10px; padding: 20px; margin-bottom: 24px;">
+        <div style="font-size: 13px; color: #888; line-height: 1.8;">
+          <strong style="color: #fff;">核心问题：</strong>Design-to-Code 工具（Claude Code / v0 / DevUI HMC / Figma）解决了"怎么写代码/怎么画界面"，但没有解决"AI 生成的内容是否偏离设计意图"。<br><br>
+          <strong style="color: #10b981;">Schema-As-Code 的解法：</strong>在 AI 生成内容<strong style="color: #10b981;">之前</strong>，先注入语义约束。同一份 YAML 契约，编译为每个工具能消费的格式。
+        </div>
       </div>
 
-      <div style="font-size: 12px; font-weight: 600; color: #aaa; margin-bottom: 12px;">选择目标工具，查看编译产物</div>
-      <div id="tool-tabs" class="tool-tabs"></div>
+      <!-- 4 张工具卡片 -->
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
 
-      <div id="cross-content" style="background: #111; border: 1px solid #222; border-radius: 10px; min-height: 300px; margin-top: 16px;">
-        <!-- 动态内容 -->
+        <!-- Card 1: Claude Code -->
+        <div style="background: #111; border: 1px solid #222; border-radius: 10px; overflow: hidden;">
+          <div style="padding: 16px 20px; background: #161616; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">🔧</span>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #fff;">Claude Code</div>
+              <div style="font-size: 11px; color: #666;">角色：工程师 · 在 IDE 里写代码</div>
+            </div>
+          </div>
+          <div style="padding: 20px;">
+            <!-- 无约束 -->
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px;">
+              <div style="font-size: 11px; color: #ef4444; font-weight: 600; margin-bottom: 8px;">❌ 没有上游约束层</div>
+              <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">工程师 Prompt：</div>
+              <div style="font-size: 11px; color: #888; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px; margin-bottom: 8px;">"帮我写一个删除账户的确认弹窗"</div>
+              <div style="font-size: 11px; color: #888; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px; color: #fca5a5;">&lt;Button variant="contained"&gt;确认&lt;/Button&gt;</div>
+              <div style="font-size: 11px; color: #ef4444; margin-top: 8px;">⚠️ 高危操作做成了普通蓝色按钮，无二次确认</div>
+            </div>
+            <!-- 有约束 -->
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px;">
+              <div style="font-size: 11px; color: #10b981; font-weight: 600; margin-bottom: 8px;">✅ 有 Schema-As-Code 上游约束</div>
+              <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">自动注入 System Prompt 前缀：</div>
+              <div style="font-size: 11px; color: #86efac; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px; margin-bottom: 8px; line-height: 1.6;">## 语义约束（来自 intent/DEL-001.yaml）<br>当 action_type=destructive 时：<br>- 按钮必须用 outline_danger<br>- 必须包含二次确认弹窗<br>- 禁止生成 contained 主按钮</div>
+              <div style="font-size: 11px; color: #86efac; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px;">&lt;Button variant="outline" color="danger"&gt;确认删除账户&lt;/Button&gt;<br>&lt;ConfirmDialog /&gt;<br>&lt;Alert severity="error"&gt;此操作不可恢复&lt;/Alert&gt;</div>
+            </div>
+            <!-- 接入方式 -->
+            <div style="padding: 10px 12px; background: #1a1a1a; border-radius: 6px; border-left: 3px solid #10b981;">
+              <div style="font-size: 11px; color: #888;">📎 <strong style="color: #aaa;">接入方式：</strong>在 Claude Code 的 system prompt 中引用 <span style="color: #7dd3fc;">intent/DEL-001.yaml</span> 编译产物，作为生成代码的前置约束。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: v0 -->
+        <div style="background: #111; border: 1px solid #222; border-radius: 10px; overflow: hidden;">
+          <div style="padding: 16px 20px; background: #161616; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">⚡</span>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #fff;">v0 by Vercel</div>
+              <div style="font-size: 11px; color: #666;">角色：设计师/产品经理 · 快速生成原型</div>
+            </div>
+          </div>
+          <div style="padding: 20px;">
+            <!-- 无约束 -->
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px;">
+              <div style="font-size: 11px; color: #ef4444; font-weight: 600; margin-bottom: 8px;">❌ 没有上游约束层</div>
+              <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">设计师输入：</div>
+              <div style="font-size: 11px; color: #888; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px; margin-bottom: 8px;">"一个删除账户的弹窗"</div>
+              <div style="font-size: 11px; color: #888; margin-bottom: 8px;">v0 生成：</div>
+              <div style="font-size: 11px; color: #fca5a5; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px;">普通 Dialog 组件，按钮样式自由发挥，无二次确认</div>
+              <div style="font-size: 11px; color: #ef4444; margin-top: 8px;">⚠️ AI 不知道这是高危操作，按普通弹窗生成</div>
+            </div>
+            <!-- 有约束 -->
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px;">
+              <div style="font-size: 11px; color: #10b981; font-weight: 600; margin-bottom: 8px;">✅ 有 Schema-As-Code 上游约束</div>
+              <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">v0 生成前自动读取 YAML 规则：</div>
+              <div style="font-size: 11px; color: #86efac; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px; margin-bottom: 8px; line-height: 1.6;">if (action_type == "destructive") {<br>  component = "Button";<br>  props = { variant: "outline", color: "red" };<br>  required_children = ["ConfirmDialog"];<br>}</div>
+              <div style="font-size: 11px; color: #86efac; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px;">红色描边按钮 + 二次确认 Dialog + 后果说明 Alert</div>
+            </div>
+            <!-- 接入方式 -->
+            <div style="padding: 10px 12px; background: #1a1a1a; border-radius: 6px; border-left: 3px solid #10b981;">
+              <div style="font-size: 11px; color: #888;">📎 <strong style="color: #aaa;">接入方式：</strong>v0 组件规则引擎读取 YAML 编译产物，生成前自动校验组件属性是否符合语义约束。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: DevUI HMC -->
+        <div style="background: #111; border: 1px solid #222; border-radius: 10px; overflow: hidden;">
+          <div style="padding: 16px 20px; background: #161616; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">🔷</span>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #fff;">DevUI HMC</div>
+              <div style="font-size: 11px; color: #666;">角色：企业前端 · 符合组件库规范</div>
+            </div>
+          </div>
+          <div style="padding: 20px;">
+            <!-- 无约束 -->
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px;">
+              <div style="font-size: 11px; color: #ef4444; font-weight: 600; margin-bottom: 8px;">❌ 没有上游约束层</div>
+              <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">HMC 生成组件：</div>
+              <div style="font-size: 11px; color: #888; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px; margin-bottom: 8px;">&lt;d-button type="primary"&gt;确认&lt;/d-button&gt;</div>
+              <div style="font-size: 11px; color: #ef4444; margin-top: 8px;">⚠️ 虽然用了 DevUI 组件，但高危操作用了 primary 样式，无二次确认</div>
+            </div>
+            <!-- 有约束 -->
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px;">
+              <div style="font-size: 11px; color: #10b981; font-weight: 600; margin-bottom: 8px;">✅ 有 Schema-As-Code 上游约束</div>
+              <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">HMC Skill 配置映射：</div>
+              <div style="font-size: 11px; color: #86efac; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px; margin-bottom: 8px; line-height: 1.6;">skill_name: vue-devui-practices<br>mapping:<br>  destructive_action:<br>    component: "d-button"<br>    props: { type: "danger", outline: true }<br>    required_modals: ["d-modal[confirm]"]</div>
+              <div style="font-size: 11px; color: #86efac; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px;">&lt;d-button type="danger" outline&gt;确认删除&lt;/d-button&gt;<br>&lt;d-modal confirm&gt;此操作不可恢复&lt;/d-modal&gt;</div>
+            </div>
+            <!-- 接入方式 -->
+            <div style="padding: 10px 12px; background: #1a1a1a; border-radius: 6px; border-left: 3px solid #10b981;">
+              <div style="font-size: 11px; color: #888;">📎 <strong style="color: #aaa;">接入方式：</strong>HMC 的 <span style="color: #7dd3fc;">vue-devui-practices Skill</span> 读取 YAML 映射表，自动将语义标签映射到 DevUI 组件属性。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: Figma MCP -->
+        <div style="background: #111; border: 1px solid #222; border-radius: 10px; overflow: hidden;">
+          <div style="padding: 16px 20px; background: #161616; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">🎨</span>
+            <div>
+              <div style="font-size: 14px; font-weight: 600; color: #fff;">Figma MCP</div>
+              <div style="font-size: 11px; color: #666;">角色：设计系统负责人 · 把控设计质量</div>
+            </div>
+          </div>
+          <div style="padding: 20px;">
+            <!-- 无约束 -->
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px;">
+              <div style="font-size: 11px; color: #ef4444; font-weight: 600; margin-bottom: 8px;">❌ 没有上游约束层</div>
+              <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">设计师在 Figma 里画了一个"删除"按钮：</div>
+              <div style="font-size: 11px; color: #888; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px; margin-bottom: 8px;">Button 组件，红色填充，文案"删除"</div>
+              <div style="font-size: 11px; color: #ef4444; margin-top: 8px;">⚠️ 设计稿看起来对，但不知道是否符合语义规范（应该用描边而非填充）</div>
+            </div>
+            <!-- 有约束 -->
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px;">
+              <div style="font-size: 11px; color: #10b981; font-weight: 600; margin-bottom: 8px;">✅ 有 Schema-As-Code 上游约束</div>
+              <div style="font-size: 12px; color: #aaa; margin-bottom: 8px;">Figma 插件实时读取 YAML 规则：</div>
+              <div style="font-size: 11px; color: #86efac; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px; margin-bottom: 8px; line-height: 1.6;">if (label.contains("删除") && style != "outline_danger") {<br>  severity = "ERROR";<br>  message = "删除按钮必须使用 outline_danger 样式";<br>  node.addRedCircle();<br>}</div>
+              <div style="font-size: 11px; color: #86efac; font-family: monospace; background: #0d0d0d; padding: 8px; border-radius: 4px;">Figma 画布上，违规按钮节点自动标红圈提示</div>
+            </div>
+            <!-- 接入方式 -->
+            <div style="padding: 10px 12px; background: #1a1a1a; border-radius: 6px; border-left: 3px solid #10b981;">
+              <div style="font-size: 11px; color: #888;">📎 <strong style="color: #aaa;">接入方式：</strong>Figma MCP 插件读取 YAML 语义规则，对设计稿中的组件节点做实时 Lint 检查，违规自动标红。</div>
+            </div>
+          </div>
+        </div>
+
       </div>
+
+      <!-- 底部总结 -->
+      <div style="margin-top: 24px; background: #111; border: 1px solid #222; border-radius: 10px; padding: 20px;">
+        <div style="font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 12px;">🎯 核心洞察</div>
+        <div style="font-size: 12px; color: #888; line-height: 1.8;">
+          所有 Design-to-Code 工具都在解决<strong style="color: #ccc;">形态问题</strong>（长什么样、用什么组件、怎么写代码）。<br>
+          Schema-As-Code 解决的是<strong style="color: #10b981;">语义问题</strong>（这个组件在这个场景下意味着什么、不能突破什么边界）。<br><br>
+          <strong style="color: #fff;">我不替代任何工具，我给它们提供一层上游约束——让 AI 生成的内容，在视觉层和工程层之前，先过一遍语义层。</strong>
+        </div>
+      </div>
+
     </div>
 
     <div class="json-panel">
@@ -395,6 +535,7 @@
 {
   "isi_version": "1.0",
   "intent_id": "DEL-001",
+  "semantic_domain": "transactional",
   "compiled_outputs": {
     "claude_code": {
       "type": "prompt_prefix",
@@ -423,9 +564,7 @@
 }
       </div>
     </div>
-  </div>
-
-</main>
+  </div></main>
 
 <script src="app.js"></script>
 </body>
